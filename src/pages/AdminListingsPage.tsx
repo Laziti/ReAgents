@@ -212,7 +212,7 @@ const AdminListingsPage = () => {
               <div className="relative w-full sm:max-w-xs">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
                 <Input
-                  placeholder="Search listings..."
+                  placeholder="Search listings"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-white"

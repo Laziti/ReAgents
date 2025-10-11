@@ -97,7 +97,10 @@ const AuthHero: React.FC = () => {
         }
       }
       
-      if (data.user) navigate('/dashboard');
+      if (data.user) {
+        // Redirect to dashboard after successful login
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       // Provide a more detailed error message for common issues
       let errorMsg = error.message || 'Failed to sign in.';
@@ -156,41 +159,44 @@ const AuthHero: React.FC = () => {
               last_name: signUpLastName,
               phone_number: signUpPhoneNumber,
               company: companyToSubmit,
+              career: 'real_estate_agent', // Default career for all signups
+              payment_receipt_url: null, // Will be updated later during subscription
+              listing_limit: { type: 'month', value: 5 } // Default listing limit
             }
           }
         }
       );
 
       if (createError) {
-        throw createError;
+        console.error('User creation error:', createError);
+        let errorMsg = 'Failed to create account. ';
+        
+        if (createError.message.includes('already exists')) {
+          errorMsg = 'An account with this email already exists. Please sign in or use a different email.';
+        } else if (createError.message.includes('invalid email')) {
+          errorMsg = 'Please enter a valid email address.';
+        } else if (createError.message.includes('password')) {
+          errorMsg = 'Password must be at least 6 characters long.';
+        }
+        
+        toast.error(errorMsg);
+        throw new Error(errorMsg);
       }
 
       if (!userData?.user?.id) {
-        throw new Error('No user returned from user creation');
+        const errorMsg = 'Account creation failed. Please try again.';
+        toast.error(errorMsg);
+        throw new Error(errorMsg);
       }
 
-      // The Edge Function now handles profile and role creation
-      // We just need to update the profile with additional details if needed
-      const userId = userData.user.id;
-
-      // Update profile with slug and additional details
-      const slug = createSlug(`${signUpFirstName} ${signUpLastName}`);
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ 
-          slug,
-          phone_number: signUpPhoneNumber,
-          company: companyToSubmit
-        })
-        .eq('id', userId);
-      
-      if (updateError) {
-        console.error('Error updating profile:', updateError);
-        // Don't throw error here as the user was created successfully
-        console.warn('Profile update failed, but user was created');
-      }
+      // The Edge Function now handles profile creation, including slug generation
       setSignUpSuccess(true);
-      toast.success('Account created successfully! Please check your email to verify your account.');
+      toast.success('Account created successfully!', {
+        description: 'Please check your email to verify your account. You can sign in after verification.',
+        duration: 6000
+      });
+      
+      // Reset form and switch to sign in
       setActiveTab('signIn');
       setSignInEmail(signUpEmail);
       setSignInPassword('');
@@ -202,8 +208,9 @@ const AuthHero: React.FC = () => {
       setSignUpCompany('');
       setSignUpOtherCompany('');
     } catch (error: any) {
-      let errorMsg = error.message || 'Failed to sign up.';
+      const errorMsg = error.message || 'Failed to sign up. Please try again.';
       setErrorMessage(errorMsg);
+      toast.error(errorMsg);
       console.error('Sign up error:', error);
     } finally {
       setIsLoading(false);

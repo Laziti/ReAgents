@@ -14,6 +14,10 @@ import Index from "./pages/Index";
 import AdminListingsPage from "./pages/AdminListingsPage";
 import AgentPublicProfile from "./pages/AgentPublicProfile";
 import ListingDetail from "./pages/ListingDetail";
+import PendingApproval from "./pages/PendingApproval";
+import ReceiptUpload from "./pages/ReceiptUpload";
+import ImageSelection from "./pages/ImageSelection";
+import ListingDetails from "./pages/ListingDetails";
 import './styles/portal-theme.css';
 
 const queryClient = new QueryClient();
@@ -24,9 +28,13 @@ const AppRoutes = () => {
       <Route path="/" element={<Index />} />
       <Route path="/auth" element={<Auth />} />
       
+      {/* Public Pages */}
+      <Route path="/pending" element={<PendingApproval />} />
+      <Route path="/not-found" element={<NotFound />} />
+      
       {/* Public Agent Profile Routes - These must come before protected routes */}
-      <Route path="/:agentSlug" element={<AgentPublicProfile />} />
-      <Route path="/:agentSlug/listing/:listingSlug" element={<ListingDetail />} />
+      <Route path="/agent/:agentSlug" element={<AgentPublicProfile />} />
+      <Route path="/agent/:agentSlug/listing/:listingSlug" element={<ListingDetail />} />
       
       {/* Protected Admin Routes */}
       <Route 
@@ -68,6 +76,30 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['agent']}>
             <AgentDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/agent/receipt-upload" 
+        element={
+          <ProtectedRoute allowedRoles={['agent']}>
+            <ReceiptUpload />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/agent/image-selection" 
+        element={
+          <ProtectedRoute allowedRoles={['agent']}>
+            <ImageSelection />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/agent/listing-details" 
+        element={
+          <ProtectedRoute allowedRoles={['agent']}>
+            <ListingDetails />
           </ProtectedRoute>
         } 
       />

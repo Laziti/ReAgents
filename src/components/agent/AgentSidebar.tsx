@@ -9,7 +9,8 @@ import '@/styles/portal-theme.css';
 import UpgradeSidebar from './UpgradeSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import Logo from '../../../public/LogoBG.svg';
+import Logo from '/LogoBG.svg';
+
 
 type AgentSidebarProps = {
   activeTab: string;
@@ -100,19 +101,19 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
       id: 'dashboard', 
       label: 'Dashboard', 
       icon: <LayoutDashboard className="h-5 w-5" />,
-      action: () => setActiveTab('dashboard') 
+      action: () => setActiveTab('dashboard')
     },
     { 
       id: 'listings', 
       label: 'My Listings', 
       icon: <List className="h-5 w-5" />,
-      action: () => setActiveTab('listings') 
+      action: () => setActiveTab('listings')
     },
     { 
       id: 'create', 
       label: 'Create New', 
       icon: <Plus className="h-5 w-5" />,
-      action: () => setActiveTab('create') 
+      action: () => setActiveTab('create')
     },
     { 
       id: 'account', 

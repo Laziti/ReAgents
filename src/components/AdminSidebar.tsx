@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import '@/styles/portal-theme.css';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import Logo from '../../public/LogoBG.svg';
-import LogoIcon from '../../public/LogoIcon.svg';
+import Logo from '/LogoBG.svg';
+import LogoIcon from '/LogoIcon.svg';
 
 const menuItems = [
   {

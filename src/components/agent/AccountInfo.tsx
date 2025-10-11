@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { createSlug } from '@/lib/formatters';
@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type ListingLimitType = NonNullable<Profile['listing_limit']>;
-
 interface AccountInfoProps {
   listings?: any[];
   profile?: Profile;
@@ -58,6 +57,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
   const [telegramLink, setTelegramLink] = useState('');
   const [phoneNumber, setPhoneNumber] = useState(profile?.phone_number || '');
   const [isSaving, setIsSaving] = useState(false);
+  
 
   // Returns a string like '1 year, 2 months, 5 days remaining' or '15 days remaining' or 'Expired'
   const getTimeRemaining = (profileData: Profile | null) => {
@@ -194,43 +194,8 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
   }, [initialProfile]);
 
   const getUsagePercentage = () => {
-    let count = 0;
-    const now = new Date();
-    
-    switch (listingLimit.type) {
-      case 'day':
-        count = listings.filter(l => {
-          const listingDate = new Date(l.created_at);
-          return listingDate.toDateString() === now.toDateString();
-        }).length;
-        break;
-      case 'week':
-        count = listings.filter(l => {
-          const listingDate = new Date(l.created_at);
-          const diffTime = Math.abs(now.getTime() - listingDate.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          return diffDays <= 7;
-        }).length;
-        break;
-      case 'month':
-        count = listings.filter(l => {
-          const listingDate = new Date(l.created_at);
-          return (
-            listingDate.getMonth() === now.getMonth() &&
-            listingDate.getFullYear() === now.getFullYear()
-          );
-        }).length;
-        break;
-      case 'year':
-        count = listings.filter(l => {
-          const listingDate = new Date(l.created_at);
-          return listingDate.getFullYear() === now.getFullYear();
-        }).length;
-        break;
-      default:
-        return 0;
-    }
-    
+    // Use the total listings count to match what's displayed
+    const count = listings.length;
     return Math.min(Math.round((count / listingLimit.value) * 100), 100);
   };
 
@@ -254,8 +219,8 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
     const url = new URL(window.location.href);
     const baseUrl = `${url.protocol}//${url.host}`;
     
-    // Return the complete URL
-    return `${baseUrl}/${profileSlug}`;
+    // Return the complete URL with /agent/ prefix
+    return `${baseUrl}/agent/${profileSlug}`;
   };
 
   const handleCopyUrl = () => {
@@ -340,7 +305,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
     if (!file) {
       return;
     }
-
+    
     setUploading(true);
     setError(null);
 
@@ -424,7 +389,9 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
       } : null);
       console.log('Profile contact details updated successfully!');
       setError('Profile updated successfully!'); // Success message
-      setTimeout(() => setError(null), 3000); // Clear message after 3 seconds
+      setTimeout(() => {
+        setError(null);
+      }, 3000); // Clear message after 3 seconds
 
       if (onRefresh) {
         await onRefresh();
@@ -577,14 +544,15 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                 </p>
                 <div className="w-full bg-[var(--portal-bg)] border border-[var(--portal-border)] rounded-full h-2.5">
                   <div 
-                    className={`h-2.5 rounded-full ${
-                      getUsagePercentage() >= 90 
-                        ? 'bg-red-500' 
+                    className="h-2.5 rounded-full"
+                    style={{ 
+                      width: `${getUsagePercentage()}%`,
+                      backgroundColor: getUsagePercentage() >= 90 
+                        ? '#dc2626' // red-600 - more visible
                         : getUsagePercentage() >= 75 
-                          ? 'bg-yellow-500' 
-                          : 'bg-gold-500'
-                    }`}
-                    style={{ width: `${getUsagePercentage()}%` }}
+                          ? '#d97706' // amber-600 - more visible
+                          : '#059669' // emerald-600 - green for good usage
+                    }}
                   ></div>
                 </div>
                 <div className="flex justify-between items-center">
@@ -596,7 +564,12 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                   </span>
                 </div>
                 {getUsagePercentage() >= 75 && (
-                  <div className={`text-sm mt-2 ${getUsagePercentage() >= 90 ? 'text-red-500' : 'text-yellow-500'}`}>
+                  <div 
+                    className="text-sm mt-2"
+                    style={{
+                      color: getUsagePercentage() >= 90 ? '#dc2626' : '#d97706'
+                    }}
+                  >
                     {getUsagePercentage() >= 90 
                       ? "You're almost at your listing limit! Consider upgrading your plan."
                       : "You're approaching your listing limit."}
@@ -628,7 +601,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                 <div className="space-y-3">
                   <div>
                     <label htmlFor="whatsapp-link" className="block text-sm font-medium text-[var(--portal-text-secondary)] mb-1">
-                      WhatsApp Link (e.g., https://wa.me/2519...)
+                      WhatsApp Link
                     </label>
                     <Input
                       id="whatsapp-link"
@@ -641,7 +614,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                   </div>
                   <div>
                     <label htmlFor="telegram-link" className="block text-sm font-medium text-[var(--portal-text-secondary)] mb-1">
-                      Telegram Link (e.g., https://t.me/yourusername)
+                      Telegram Link
                     </label>
                     <Input
                       id="telegram-link"
@@ -654,7 +627,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                   </div>
                   <div>
                     <label htmlFor="phone-number" className="block text-sm font-medium text-[var(--portal-text-secondary)] mb-1">
-                      Phone Number (e.g., +2519...)
+                      Phone Number
                     </label>
                     <Input
                       id="phone-number"

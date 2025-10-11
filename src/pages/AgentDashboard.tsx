@@ -19,10 +19,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 const AgentDashboard = () => {
   const { user, userStatus, signOut, refreshSession } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  
   const [loading, setLoading] = useState(true);
   const [listings, setListings] = useState([]);
   const [currentListingId, setCurrentListingId] = useState(null);
   const [profileData, setProfileData] = useState(null);
+  
   const [copied, setCopied] = useState(false);
   const copyTimeout = useRef(null);
   const navigate = useNavigate();
@@ -85,8 +87,8 @@ const AgentDashboard = () => {
     const url = new URL(window.location.href);
     const baseUrl = `${url.protocol}//${url.host}`;
     
-    // Return the complete URL
-    return `${baseUrl}/${profileSlug}`;
+    // Return the complete URL with /agent/ prefix
+    return `${baseUrl}/agent/${profileSlug}`;
   };
 
   // Helper function for clipboard operations
@@ -164,7 +166,9 @@ const AgentDashboard = () => {
 
   const handleShareToSocial = (platform: string) => {
     const profileUrl = getPublicProfileUrl();
-    const shareText = `Check out my real estate agent profile: ${profileUrl}`;
+    const agentName = profileData ? `${profileData.first_name} ${profileData.last_name}` : 'Real Estate Agent';
+    const agentDescription = profileData?.career ? `${agentName} is a trusted real estate agent specializing in ${profileData.career}.` : `${agentName} is a trusted real estate agent specializing in finding the perfect properties for clients.`;
+    const shareText = `Professional Real Estate Agent: ${agentName}\n\n${agentDescription}\n\nView properties: ${profileUrl}`;
     let url = '';
 
     switch (platform) {
@@ -175,7 +179,7 @@ const AgentDashboard = () => {
         url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
         break;
       case 'linkedin':
-        url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(profileUrl)}&title=${encodeURIComponent('Real Estate Agent Profile')}&summary=${encodeURIComponent(shareText)}`;
+        url = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(profileUrl)}&title=${encodeURIComponent('Professional Real Estate Agent')}&summary=${encodeURIComponent(shareText)}`;
         break;
       case 'whatsapp':
         url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
@@ -225,7 +229,13 @@ const AgentDashboard = () => {
           setProfileData(null);
           return;
         }
-        setProfileData(profileData);
+        // Only update profileData if it's actually different to prevent unnecessary re-renders
+        setProfileData(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(profileData)) {
+            return prev; // No change, return same reference
+          }
+          return profileData; // Different data, update
+        });
 
         // Only fetch listings if we haven't recently fetched them
         const now = Date.now();
@@ -250,6 +260,13 @@ const AgentDashboard = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [user, userStatus, navigate]);
+
+  // Handle navigation to create listing page
+  useEffect(() => {
+    if (activeTab === 'create') {
+      navigate('/agent/image-selection');
+    }
+  }, [activeTab, navigate]);
 
   const handleEditListing = (listingId) => {
     setCurrentListingId(listingId);
@@ -343,7 +360,7 @@ const AgentDashboard = () => {
             <Button
               variant="outline"
               className="bg-white border border-red-500 text-red-600 hover:bg-red-50 hover:text-black font-semibold"
-              onClick={() => window.open(`/${profileData?.slug || ''}`, '_blank')}
+              onClick={() => window.open(`/agent/${profileData?.slug || ''}`, '_blank')}
             >
               <Eye className="h-4 w-4 mr-2" />
               View My Profile
@@ -376,11 +393,9 @@ const AgentDashboard = () => {
               )}
               
               {activeTab === 'create' && (
-                <CreateListingForm onSuccess={() => {
-                  setActiveTab('listings');
-                  // Refetch listings after successful creation
-                  fetchListings();
-                }} />
+                <div className="text-center py-12">
+                  <p className="text-[var(--portal-text-secondary)] mb-4">Redirecting to create listing...</p>
+                </div>
               )}
               
               {activeTab === 'edit' && currentListingId && (
@@ -397,9 +412,7 @@ const AgentDashboard = () => {
                 </div>
               )}
 
-              {activeTab === 'upgrade' && profileData?.subscription_status !== 'pro' && (
-                <UpgradeSidebar />
-              )}
+              {activeTab === 'upgrade' && <UpgradeSidebar />}
             </>
           )}
         </div>

@@ -72,31 +72,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Fetch user role from the database
+  // Fetch user role from the database with retry logic
   const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId);
+    const maxRetries = 3;
+    let retryCount = 0;
+    let roleAssigned = false;
 
-      if (error) {
-        console.error('Error fetching user role:', error);
-        setUserRole('agent'); // fallback to agent
-      } else if (!data || data.length === 0) {
-        console.warn('No user role found, defaulting to agent');
-        setUserRole('agent');
-      } else {
-        // Prefer super_admin if present, otherwise agent
-        const roles = data.map((r: any) => r.role);
-        if (roles.includes('super_admin')) {
-          setUserRole('super_admin');
+    while (!roleAssigned && retryCount < maxRetries) {
+      try {
+        // First, check if role exists
+        const { data: existingRole, error: checkError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error(`Error checking user role (attempt ${retryCount + 1}):`, checkError);
+        } else if (existingRole) {
+          // Role exists, set it
+          setUserRole(existingRole.role === 'super_admin' ? 'super_admin' : 'agent');
+          roleAssigned = true;
+          console.log('User role found:', existingRole.role);
         } else {
-          setUserRole('agent');
+          // No role found, create one
+          console.log('No role found, creating default agent role');
+          const { error: createError } = await supabase
+            .from('user_roles')
+            .insert({
+              user_id: userId,
+              role: 'agent'
+            });
+
+          if (createError) {
+            console.error(`Error creating user role (attempt ${retryCount + 1}):`, createError);
+          } else {
+            setUserRole('agent');
+            roleAssigned = true;
+            console.log('Default agent role created successfully');
+          }
+        }
+      } catch (error) {
+        console.error(`Error in fetchUserRole (attempt ${retryCount + 1}):`, error);
+      }
+
+      if (!roleAssigned) {
+        retryCount++;
+        if (retryCount < maxRetries) {
+          // Wait before retrying with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
         }
       }
-    } catch (error) {
-      console.error('Error in fetchUserRole:', error);
+    }
+
+    if (!roleAssigned) {
+      console.warn('Failed to fetch/create user role after all retries, defaulting to agent');
       setUserRole('agent');
     }
   };
@@ -104,17 +134,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch user status from the database
   const fetchUserStatus = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Check if profile exists using the correct field
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('status')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching user status:', error);
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
         setUserStatus(null);
+        return;
+      }
+
+      if (profile) {
+        setUserStatus(profile.status);
       } else {
-        setUserStatus(data?.status ?? null);
+        // If no profile exists, don't create one automatically
+        // Profiles should be created by the database trigger during signup
+        console.log('No profile found for user:', userId);
+        setUserStatus(null);
       }
     } catch (error) {
       console.error('Error in fetchUserStatus:', error);
@@ -122,45 +161,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Ensure user has a profile, create one if not
-  const ensureUserProfile = async (userId: string, userMetadata?: any) => {
-    try {
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', userId)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Error checking profile:', checkError);
-        return;
-      }
-
-      if (!existingProfile) {
-        console.log('Creating profile for user:', userId);
-        const { error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            user_id: userId,
-            first_name: userMetadata?.first_name || 'User',
-            last_name: userMetadata?.last_name || 'User',
-            status: 'active',
-            listing_limit: { type: 'month', value: 5 },
-            subscription_status: 'free',
-            social_links: {},
-          });
-
-        if (createError) {
-          console.error('Error creating profile:', createError);
-        } else {
-          console.log('Profile created successfully for user:', userId);
-        }
-      }
-    } catch (error) {
-      console.error('Error ensuring user profile:', error);
-    }
-  };
 
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
@@ -183,8 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setUser(data.session.user);
 
-      // Ensure user has a profile, then fetch role and status
-      await ensureUserProfile(data.session.user.id, data.session.user.user_metadata);
+      // Fetch role and status
       await fetchUserRole(data.session.user.id);
       await fetchUserStatus(data.session.user.id);
 

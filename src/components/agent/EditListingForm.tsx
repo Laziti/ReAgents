@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
@@ -76,6 +76,7 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
   const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
   const [existingAdditionalImageUrls, setExistingAdditionalImageUrls] = useState<string[]>([]);
   const [editCount, setEditCount] = useState(0);
+  
 
   const form = useForm<ListingFormValues>({
     resolver: zodResolver(listingSchema),

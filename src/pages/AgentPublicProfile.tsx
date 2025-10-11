@@ -79,68 +79,38 @@ const AgentPublicProfile = () => {
     const fetchAgent = async () => {
       setLoading(true);
       try {
-        let currentAgent: AgentProfile | null = null;
+        // Skip profile lookup for special pages
+        if (agentSlug === 'not-found' || agentSlug === 'pending') {
+          setLoading(false);
+          return;
+        }
 
-        // Attempt to fetch by slug first
+        // Attempt to fetch by slug
         const { data: profileBySlug, error: slugError } = await supabase
           .from('profiles')
           .select('id, first_name, last_name, career, phone_number, avatar_url, slug, status, whatsapp_link, telegram_link')
           .eq('slug', agentSlug)
-          .maybeSingle();
+          .eq('status', 'active')
+          .single();
 
         if (slugError) {
           console.error('Error fetching agent by slug:', slugError);
-        }
-
-        if (profileBySlug) {
-          currentAgent = profileBySlug;
-          console.log('Agent found by slug:', currentAgent);
-        } else {
-          // If no match by slug field, try the legacy method using name
-          console.warn(`No agent found with slug: ${agentSlug}. Attempting fallback by name.`);
-          const { data: profiles, error: backupError } = await supabase
-            .from('profiles')
-            .select('id, first_name, last_name, career, phone_number, avatar_url, status, slug, whatsapp_link, telegram_link')
-            .eq('status', 'approved'); // Only search approved agents
-
-          if (backupError) {
-            console.error('Error fetching profiles for slug fallback:', backupError);
-          }
-
-          if (profiles && profiles.length > 0) {
-            const matchedAgent = profiles.find(profile => {
-              const fullName = `${profile.first_name} ${profile.last_name}`;
-              return createSlug(fullName) === agentSlug;
-            });
-
-            if (matchedAgent) {
-              currentAgent = matchedAgent;
-              console.log('Agent found by name fallback:', currentAgent);
-              // Update the profile with the slug for future use if it doesn't have one
-              if (!matchedAgent.slug) {
-                await supabase
-                  .from('profiles')
-                  .update({ slug: agentSlug })
-                  .eq('id', matchedAgent.id);
-                console.log(`Updated agent ${matchedAgent.id} with slug: ${agentSlug}`);
-              }
-            } else {
-              console.warn('No agent found by name fallback.');
-            }
-          }
-        }
-
-        if (!currentAgent) {
-          console.warn('No agent found, navigating to /not-found.');
           navigate('/not-found');
           return;
         }
 
-        setAgent(currentAgent);
+        if (profileBySlug) {
+          setAgent(profileBySlug);
+          console.log('Agent found by slug:', profileBySlug);
+            } else {
+          navigate('/not-found');
+          return;
+        }
 
       } catch (error) {
         console.error('Error fetching agent profile:', error);
         setError('Error fetching agent profile');
+        navigate('/not-found');
       } finally {
         setLoading(false);
       }
@@ -262,8 +232,8 @@ const AgentPublicProfile = () => {
 
   if (!agent) return null;
 
-  const pageTitle = `${agent.first_name} ${agent.last_name} - Real Estate Listings`;
-  const pageDescription = `Browse property listings by ${agent.first_name} ${agent.last_name}${agent.career ? `, ${agent.career}` : ''}`;
+  const pageTitle = `${agent.first_name} ${agent.last_name} - Professional Real Estate Agent`;
+  const pageDescription = `Connect with ${agent.first_name} ${agent.last_name}${agent.career ? `, ${agent.career}` : ''} for expert real estate services. Browse ${listings.length} property listings and find your perfect home.`;
 
   const hasActiveSearch = searchQuery.trim() !== '' || Object.keys(searchFilters).some(key => 
     searchFilters[key as keyof SearchFilters] !== undefined
@@ -276,14 +246,19 @@ const AgentPublicProfile = () => {
         <meta name="description" content={pageDescription} />
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription} />
+        <meta property="og:image" content={agent.avatar_url || "/LogoIcon.svg"} />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:type" content="profile" />
+        <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={pageDescription} />
+        <meta name="twitter:image" content={agent.avatar_url || "/LogoIcon.svg"} />
       </Helmet>
       
-      {/* Static Cover */}
-      <div className="w-full h-48 md:h-64 relative overflow-hidden group">
+      {/* Static Cover - Hidden on mobile */}
+      <div className="hidden md:block w-full h-48 md:h-64 relative overflow-hidden group">
         <img 
-          src="public/Cover-page.PNG"
+          src="/Cover-page.png"
           alt="Agent Profile Cover" 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -453,30 +428,7 @@ const AgentPublicProfile = () => {
               </div>
             </Tabs>
           </div>
-          
-          {/* Search Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.4 }}
-            className="mb-12"
-          >
-            <Card className="bg-white border-gray-200">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-2xl font-bold text-red-500">Search Properties</CardTitle>
-                <p className="text-[var(--portal-text-secondary)]">
-                  Find the perfect property from {agent.first_name}'s listings
-                </p>
-              </CardHeader>
-              <CardContent>
-                <SearchBar
-                  onSearch={() => {}}
-                  availableCities={availableCities}
-                  placeholder={`Search ${agent.first_name}'s properties...`}
-                />
-              </CardContent>
-            </Card>
-          </motion.div>
+
         </div>
         {/* Show only filtered listings */}
         <div className="mt-12">
@@ -500,7 +452,7 @@ const AgentPublicProfile = () => {
                   createdAt={listing.created_at}
                   progressStatus={listing.progress_status}
                   bankOption={listing.bank_option}
-                  onViewDetails={() => navigate(`/${agent.slug}/listing/${createSlug(listing.title)}`)}
+                  onViewDetails={() => navigate(`/agent/${agent.slug}/listing/${createSlug(listing.title)}`)}
                 />
               ))
             ) : (

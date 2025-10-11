@@ -421,20 +421,33 @@ const ListingDetail = () => {
 
 const ModernGallery: React.FC<{ images: string[] }> = ({ images }) => {
   const [current, setCurrent] = React.useState(0);
+  const [isZoomed, setIsZoomed] = React.useState(false);
   if (!images.length) return null;
   const goPrev = () => setCurrent((prev) => (prev === 0 ? images.length - 1 : prev - 1));
   const goNext = () => setCurrent((prev) => (prev === images.length - 1 ? 0 : prev + 1));
   const showThumbs = images.length > 1;
   return (
-    <div className="w-full max-w-3xl mx-auto">
-      <div className="relative aspect-w-16 aspect-h-9 w-full rounded-2xl overflow-hidden shadow-xl border border-gold-100 bg-white/70 backdrop-blur-md flex items-center justify-center">
+    <div className="w-full max-w-2xl mx-auto px-4 sm:px-0">
+      <div className="relative aspect-[4/3] w-full max-h-80 sm:max-h-96 rounded-2xl overflow-hidden shadow-xl border border-gold-100 bg-white/70 backdrop-blur-md flex items-center justify-center group">
         <img
           key={images[current]}
           src={images[current]}
           alt={`Property image ${current + 1}`}
-          className="object-cover w-full h-full transition-all duration-500 ease-in-out rounded-2xl"
+          className="object-contain w-full h-full transition-all duration-500 ease-in-out rounded-2xl cursor-pointer"
           style={{ opacity: 1 }}
+          onClick={() => setIsZoomed(true)}
         />
+        {/* Zoom button */}
+        <button
+          onClick={() => setIsZoomed(true)}
+          className="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full p-2 shadow-lg border border-gray-200 transition-all duration-200 opacity-0 group-hover:opacity-100 z-20"
+          aria-label="Zoom image"
+          type="button"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+          </svg>
+        </button>
         {images.length > 1 && (
           <>
             <button
@@ -462,8 +475,8 @@ const ModernGallery: React.FC<{ images: string[] }> = ({ images }) => {
             <button
               key={img}
               onClick={() => setCurrent(idx)}
-              className={`w-20 h-14 rounded-lg overflow-hidden border-2 transition-all duration-200 ${current === idx ? 'border-gold-500 shadow-lg' : 'border-gold-100'} flex-shrink-0 focus:outline-none`}
-              style={{ minWidth: 80, minHeight: 56 }}
+              className={`w-16 h-12 sm:w-20 sm:h-14 rounded-lg overflow-hidden border-2 transition-all duration-200 ${current === idx ? 'border-gold-500 shadow-lg' : 'border-gold-100'} flex-shrink-0 focus:outline-none`}
+              style={{ minWidth: 64, minHeight: 48 }}
               aria-label={`Show image ${idx + 1}`}
               type="button"
             >
@@ -474,6 +487,65 @@ const ModernGallery: React.FC<{ images: string[] }> = ({ images }) => {
               />
             </button>
           ))}
+        </div>
+      )}
+      
+      {/* Zoom Modal */}
+      {isZoomed && (
+        <div 
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setIsZoomed(false)}
+        >
+          <div className="relative max-w-7xl max-h-full w-full h-full flex items-center justify-center">
+            <img
+              src={images[current]}
+              alt={`Property image ${current + 1} - Full size`}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {/* Close button */}
+            <button
+              onClick={() => setIsZoomed(false)}
+              className="absolute top-4 right-4 bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full p-2 shadow-lg border border-gray-200 transition-all duration-200 z-10"
+              aria-label="Close zoom"
+              type="button"
+            >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            {/* Navigation in zoom mode */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full p-3 shadow-lg border border-gray-200 transition-all duration-200 z-10"
+                  aria-label="Previous image"
+                  type="button"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); goNext(); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full p-3 shadow-lg border border-gray-200 transition-all duration-200 z-10"
+                  aria-label="Next image"
+                  type="button"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </>
+            )}
+            {/* Image counter */}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 text-gray-700 px-3 py-1 rounded-full text-sm font-medium shadow-lg border border-gray-200">
+                {current + 1} / {images.length}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

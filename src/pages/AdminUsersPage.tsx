@@ -540,6 +540,8 @@ const AdminUsersPage = () => {
     } catch (error: any) {
       console.error('Error creating user:', error);
       toast.error(error.message || 'Failed to create user');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -594,7 +596,7 @@ const AdminUsersPage = () => {
                 <div className="flex items-center gap-4 mb-6">
                   <div className="flex-1">
                     <SearchInput
-                      placeholder="Search users..."
+                      placeholder="Search users"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="max-w-sm bg-white"
