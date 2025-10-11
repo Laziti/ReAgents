@@ -161,43 +161,43 @@ const AgentProfileHeader = ({
                   >
                     <X className="h-4 w-4" />
                   </Button>
-                  {avatarUrl ? (
-                    <img 
-                      src={avatarUrl} 
-                      alt={`${firstName} ${lastName}`} 
+              {avatarUrl ? (
+                <img 
+                  src={avatarUrl} 
+                  alt={`${firstName} ${lastName}`} 
                       className="w-full h-full max-h-[80vh] object-contain rounded-lg" 
-                    />
-                  ) : (
+                />
+              ) : (
                     <div className="w-full h-96 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-red-500 text-6xl font-bold rounded-lg">
-                      {firstName.charAt(0)}{lastName.charAt(0)}
-                    </div>
-                  )}
+                  {firstName.charAt(0)}{lastName.charAt(0)}
                 </div>
+              )}
+            </div>
               </DialogContent>
             </Dialog>
           </div>
 
           {/* Profile Information */}
           <div className="flex-1 text-center md:text-left text-white">
-            <motion.div
+            <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
               <h1 className="text-2xl md:text-3xl font-bold mb-2 tracking-tight">
-                {firstName} {lastName}
-              </h1>
+                      {firstName} {lastName}
+                    </h1>
               
-              {career && (
+                    {career && (
                 <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                   <Briefcase className="h-4 w-4 text-blue-300" />
                   <p className="text-base text-blue-100 font-medium">
                     {career}
                   </p>
-                </div>
-              )}
+                      </div>
+                    )}
 
-              {location && (
+                    {location && (
                 <div className="flex items-center justify-center md:justify-start gap-2 mb-3">
                   <MapPin className="h-4 w-4 text-green-300" />
                   <p className="text-sm text-green-100">
@@ -208,65 +208,65 @@ const AgentProfileHeader = ({
 
               {description && (
                 <p className="text-gray-200 text-sm md:text-base leading-relaxed max-w-2xl mx-auto md:mx-0">
-                  {agentDescription}
+                    {agentDescription}
                 </p>
               )}
             </motion.div>
           </div>
-
+                  
           {/* Contact Actions */}
           <div className="flex flex-col sm:flex-row gap-3">
-            {phoneNumber && (
+                    {phoneNumber && (
               <Button 
                 className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
                 onClick={() => window.open(`tel:${phoneNumber}`)}
               >
                 <Phone className="h-5 w-5" />
                 Call Now
-              </Button>
-            )}
+                      </Button>
+                    )}
             
-            <Popover>
-              <PopoverTrigger asChild>
+                  <Popover>
+                    <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
                   className="bg-white/10 hover:bg-white/20 text-white border-white/30 hover:border-white/50 px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
                 >
                   <Share2 className="h-5 w-5" />
                   Share
-                </Button>
-              </PopoverTrigger>
+                      </Button>
+                    </PopoverTrigger>
               <PopoverContent className="w-56 p-2 bg-white border border-gray-200 shadow-xl rounded-lg">
-                <div className="grid gap-2">
-                  <Button
-                    variant="ghost"
+                      <div className="grid gap-2">
+                        <Button
+                          variant="ghost"
                     className="justify-start text-gray-700 hover:bg-gray-100 rounded-lg"
-                    onClick={copyToClipboard}
-                  >
+                          onClick={copyToClipboard}
+                        >
                     <Copy className="h-4 w-4 mr-2" />
                     {copied ? 'Copied!' : 'Copy Link'}
                     {copied && <Check className="h-4 w-4 ml-auto text-green-500" />}
-                  </Button>
-                  <Button
-                    variant="ghost"
+                        </Button>
+                        <Button
+                          variant="ghost"
                     className="justify-start text-gray-700 hover:bg-gray-100 rounded-lg"
-                    onClick={shareToWhatsApp}
-                  >
+                          onClick={shareToWhatsApp}
+                        >
                     <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
                     WhatsApp
-                  </Button>
-                  <Button
-                    variant="ghost"
+                        </Button>
+                        <Button
+                          variant="ghost"
                     className="justify-start text-gray-700 hover:bg-gray-100 rounded-lg"
-                    onClick={shareToTelegram}
-                  >
+                          onClick={shareToTelegram}
+                        >
                     <Send className="h-4 w-4 mr-2 text-blue-500" />
                     Telegram
-                  </Button>
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </div>
         </div>
       </div>
     </motion.div>
