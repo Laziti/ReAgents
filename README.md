@@ -1,73 +1,216 @@
-# Welcome to your Lovable project
+# ReAgents - Real Estate Agent Platform
 
-## Project info
+A modern, full-featured real estate agent platform built with React, TypeScript, and Supabase. Agents can create and manage property listings, while visitors can browse and search for properties.
 
-**URL**: https://lovable.dev/projects/fde44012-8903-4d5a-b926-406438ade315
+## 🚀 Features
 
-## How can I edit this code?
+### For Agents
+- **Dashboard**: View statistics and manage listings
+- **Listing Management**: Create, edit, and manage property listings
+- **Image Upload**: Upload and manage property images with R2 storage
+- **Account Management**: Update profile and account information
+- **Subscription Plans**: Free, Basic, Pro, and 6-month packages
+- **Listing Limits**: Based on subscription tier
+- **Expiration Management**: Listings expire after 2 months
 
-There are several ways of editing your application.
+### For Visitors
+- **Property Search**: Search and browse property listings
+- **Agent Profiles**: View agent public profiles
+- **Listing Details**: View detailed property information
+- **Category Filtering**: Filter by location, category, and status
+- **Responsive Design**: Works on desktop, tablet, and mobile
 
-**Use Lovable**
+### For Admins
+- **User Management**: Manage users and their subscriptions
+- **Payment Approval**: Approve subscription payments
+- **Listing Management**: Manage all listings
+- **Dashboard**: View platform statistics
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/fde44012-8903-4d5a-b926-406438ade315) and start prompting.
+## 🛠️ Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend**: React 18, TypeScript, Vite
+- **UI**: Tailwind CSS, shadcn/ui, Framer Motion
+- **Backend**: Supabase (PostgreSQL, Auth, Storage)
+- **Storage**: Cloudflare R2 (via Supabase Edge Functions)
+- **State Management**: React Query, React Context
+- **Routing**: React Router DOM
+- **Validation**: Zod
+- **Date Handling**: date-fns
 
-**Use your preferred IDE**
+## 📦 Installation
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Node.js 18+ and npm
+- Supabase account and project
+- Cloudflare R2 account (for image storage)
 
-Follow these steps:
+### Setup
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd ReAgents
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+3. **Set up environment variables**
+   ```bash
+   npm run setup-env
+   ```
+   Or manually create a `.env.local` file:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+   See [ENV-SETUP.md](./ENV-SETUP.md) for detailed instructions.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+4. **Configure R2 Storage**
+   - Set up R2 bucket and credentials
+   - Configure Supabase Edge Functions with R2 secrets
+   - See [R2-SETUP.md](./R2-SETUP.md) for detailed instructions
+
+5. **Run database migrations**
+   ```bash
+   # Apply migrations via Supabase dashboard or CLI
+   # See supabase/migrations/ for migration files
+   ```
+
+6. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+## 📁 Project Structure
+
+```
+ReAgents/
+├── src/
+│   ├── components/          # React components
+│   │   ├── admin/          # Admin components
+│   │   ├── agent/          # Agent portal components
+│   │   ├── public/         # Public-facing components
+│   │   └── ui/             # UI components (shadcn/ui)
+│   ├── contexts/           # React contexts
+│   ├── hooks/              # Custom React hooks
+│   ├── integrations/       # Third-party integrations
+│   │   └── supabase/       # Supabase client and types
+│   ├── lib/                # Utility functions
+│   │   ├── formatters.ts   # Data formatting utilities
+│   │   ├── logger.ts       # Production-safe logging
+│   │   ├── pagination.ts   # Pagination utilities
+│   │   ├── sanitize.ts     # Input sanitization
+│   │   ├── upload.ts       # File upload utilities
+│   │   ├── utils.ts        # General utilities
+│   │   └── validation.ts   # Validation schemas and rate limiting
+│   ├── pages/              # Page components
+│   ├── styles/             # Global styles
+│   └── types/              # TypeScript type definitions
+├── supabase/
+│   ├── functions/          # Supabase Edge Functions
+│   │   ├── create-user/    # User creation function
+│   │   └── upload-to-r2/   # R2 upload function
+│   └── migrations/         # Database migrations
+├── public/                 # Static assets
+└── README.md              # This file
 ```
 
-**Edit a file directly in GitHub**
+## 🔐 Security
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The application includes comprehensive security measures:
 
-**Use GitHub Codespaces**
+- **Input Sanitization**: All user inputs are sanitized to prevent XSS and SQL injection
+- **Rate Limiting**: API calls are rate-limited to prevent abuse
+- **Production-Safe Logging**: No sensitive data in console logs
+- **Error Boundaries**: Graceful error handling
+- **Authentication**: Supabase Auth with role-based access control
+- **Database Security**: Row Level Security (RLS) policies
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+See [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) for detailed security information.
 
-## What technologies are used for this project?
+## 🚀 Deployment
 
-This project is built with:
+### Vercel (Recommended)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy
 
-## How can I deploy this project?
+### Other Platforms
 
-Simply open [Lovable](https://lovable.dev/projects/fde44012-8903-4d5a-b926-406438ade315) and click on Share -> Publish.
+The application can be deployed to any platform that supports Node.js:
+- Netlify
+- Railway
+- Render
+- AWS Amplify
 
-## Can I connect a custom domain to my Lovable project?
+Make sure to set the following environment variables:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
-Yes, you can!
+## 📊 Subscription Plans
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+- **Free**: 10 listings
+- **Basic**: 30 listings/month - 300 ETB/month
+- **Pro**: 50 listings/month - 500 ETB/month
+- **6-Month**: 50 listings/month - 2,500 ETB/6 months
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Listings expire 2 months after creation.
+
+## 🔧 Development
+
+### Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run setup-env` - Set up environment variables
+
+### Code Style
+
+- TypeScript for type safety
+- ESLint for code quality
+- Prettier for code formatting (if configured)
+
+## 📝 Documentation
+
+- [ENV-SETUP.md](./ENV-SETUP.md) - Environment variables setup
+- [R2-SETUP.md](./R2-SETUP.md) - R2 storage configuration
+- [R2-CORS-SETUP.md](./R2-CORS-SETUP.md) - R2 CORS configuration
+- [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) - Security audit and fixes
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## 📄 License
+
+This project is proprietary and confidential.
+
+## 🆘 Support
+
+For issues and questions:
+1. Check the documentation files
+2. Review the security audit for common issues
+3. Contact the development team
+
+## 🎯 Roadmap
+
+- [ ] Code splitting for better performance
+- [ ] Advanced search filters
+- [ ] Email notifications
+- [ ] Mobile app (React Native)
+- [ ] Analytics dashboard
+- [ ] Multi-language support
+
+---
+
+Built with ❤️ using React, TypeScript, and Supabase

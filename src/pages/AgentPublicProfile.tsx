@@ -5,6 +5,7 @@ import { Helmet } from 'react-helmet';
 import AgentProfileHeader from '@/components/public/AgentProfileHeader';
 import ListingCard from '@/components/public/ListingCard';
 import SearchBar from '@/components/public/SearchBar';
+import CategorizedListings from '@/components/public/CategorizedListings';
 import { Loader2, Building, ChevronRight, Home, ArrowLeft, Phone, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +13,7 @@ import { createSlug } from '@/lib/formatters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
+import { logger } from '@/lib/logger';
 
 interface AgentProfile {
   id: string;
@@ -59,6 +61,7 @@ const AgentPublicProfile = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
   const [activeFilters, setActiveFilters] = useState<number>(0);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
 
   const progressStatusLabels: Record<string, string> = {
     excavation: 'Excavation',
@@ -94,21 +97,21 @@ const AgentPublicProfile = () => {
           .single();
 
         if (slugError) {
-          console.error('Error fetching agent by slug:', slugError);
+          logger.error('Error fetching agent by slug:', slugError);
           navigate('/not-found');
           return;
         }
 
         if (profileBySlug) {
           setAgent(profileBySlug);
-          console.log('Agent found by slug:', profileBySlug);
+          logger.log('Agent found by slug:', profileBySlug);
             } else {
           navigate('/not-found');
           return;
         }
 
       } catch (error) {
-        console.error('Error fetching agent profile:', error);
+        logger.error('Error fetching agent profile:', error);
         setError('Error fetching agent profile');
         navigate('/not-found');
       } finally {
@@ -124,28 +127,29 @@ const AgentPublicProfile = () => {
   useEffect(() => {
     const fetchListings = async () => {
       if (!agent) {
-        console.log('Agent not set, skipping listings fetch.');
+        logger.log('Agent not set, skipping listings fetch.');
         return;
       }
       setLoading(true);
-      console.log(`Fetching listings for agent ID: ${agent.id}`);
+      logger.log(`Fetching listings for agent ID: ${agent.id}`);
       try {
         const { data: listingsData, error: listingsError } = await supabase
           .from('listings')
-          .select('id, title, price, location, city, main_image_url, description, created_at, progress_status, bank_option')
+          .select('id, title, price, location, city, main_image_url, description, created_at, progress_status, bank_option, expires_at, views')
           .eq('user_id', agent.id)
           .neq('status', 'hidden')
+          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
           .order('created_at', { ascending: false });
 
         if (listingsError) {
-          console.error('Error fetching listings:', listingsError);
+          logger.error('Error fetching listings:', listingsError);
           setListings([]);
         } else {
-          console.log(`Fetched ${listingsData?.length || 0} listings.`);
+          logger.log(`Fetched ${listingsData?.length || 0} listings.`);
           setListings(listingsData as unknown as Listing[]);
         }
       } catch (error) {
-        console.error('Error fetching listings:', error);
+        logger.error('Error fetching listings:', error);
         setListings([]);
       } finally {
         setLoading(false);
@@ -159,7 +163,7 @@ const AgentPublicProfile = () => {
     if (listings.length > 0) {
       const cities = Array.from(new Set(listings.map(listing => listing.city).filter(Boolean)));
       setAvailableCities(cities as string[]);
-      console.log('Available cities for filtering:', cities);
+      logger.log('Available cities for filtering:', cities);
     }
   }, [listings]);
 
@@ -196,9 +200,26 @@ const AgentPublicProfile = () => {
     setActiveFilters(count);
   }, [searchFilters]);
 
-  // Update filtered listings when searchFilters or listings change
+  // Update filtered listings when searchFilters, listings, or activeCategory change
   useEffect(() => {
     let filtered = [...listings];
+    
+    // Apply category filter
+    if (activeCategory === 'recent') {
+      // Show listings from last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      filtered = filtered.filter(l => {
+        if (!l.created_at) return false;
+        return new Date(l.created_at) >= thirtyDaysAgo;
+      });
+    } else if (activeCategory !== 'all' && activeCategory.startsWith('city-')) {
+      // Filter by city
+      const cityName = activeCategory.replace('city-', '');
+      filtered = filtered.filter(l => l.city === cityName);
+    }
+    
+    // Apply other filters
     if (searchFilters.city) {
       filtered = filtered.filter(l => l.city === searchFilters.city);
     }
@@ -212,7 +233,7 @@ const AgentPublicProfile = () => {
       filtered = filtered.filter(l => l.price >= searchFilters.minPrice && l.price < searchFilters.maxPrice);
     }
     setFilteredListings(filtered);
-  }, [searchFilters, listings]);
+  }, [searchFilters, listings, activeCategory]);
 
   // Clear all filters
   const clearAllFilters = () => {
@@ -255,19 +276,7 @@ const AgentPublicProfile = () => {
         <meta name="twitter:image" content={agent.avatar_url || "/LogoIcon.svg"} />
       </Helmet>
       
-      {/* Static Cover - Hidden on mobile */}
-      <div className="hidden md:block w-full h-48 md:h-64 relative overflow-hidden group">
-        <img 
-          src="/Cover-page.png"
-          alt="Agent Profile Cover" 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity duration-300 group-hover:bg-black/40">
-          {/* Optional: Add a subtle overlay or text here if desired */}
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-8 relative z-10 -mt-16 md:-mt-24">
+      <div className="container mx-auto px-4 py-4 sm:py-6 relative z-10">
         <div className="max-w-7xl mx-auto">
           {/* Agent Profile Header */}
           <div className="mb-8 relative z-20">
@@ -430,46 +439,34 @@ const AgentPublicProfile = () => {
           </div>
 
         </div>
-        {/* Show only filtered listings */}
+
+        {/* Categorized Listings Section */}
         <div className="mt-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-red-500">Listings</h2>
-            <Badge variant="outline" className="bg-white text-[var(--portal-text)] border-gray-200">
-              {filteredListings.length} {filteredListings.length === 1 ? 'Property' : 'Properties'}
-            </Badge>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredListings.length > 0 ? (
-              filteredListings.map((listing, index) => (
-                <ListingCard
-                  key={listing.id}
-                  id={listing.id}
-                  title={listing.title}
-                  location={listing.location}
-                  mainImageUrl={listing.main_image_url}
-                  agentSlug={agent.slug}
-                  description={listing.description}
-                  createdAt={listing.created_at}
-                  progressStatus={listing.progress_status}
-                  bankOption={listing.bank_option}
-                  onViewDetails={() => navigate(`/agent/${agent.slug}/listing/${createSlug(listing.title)}`)}
-                />
-              ))
-            ) : (
-              <div className="col-span-full text-center py-12">
-                <div className="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-                  <Filter className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-xl font-bold mb-2">No listings found</h3>
-                  <p className="text-[var(--portal-text-secondary)] mb-4">
-                    Try adjusting your filters to see more properties
-                  </p>
-                  <Button onClick={clearAllFilters} variant="outline" className="border-red-200 text-red-500 hover:bg-red-50">
-                    Clear all filters
-                  </Button>
-                </div>
+          {filteredListings.length > 0 ? (
+            <CategorizedListings
+              listings={filteredListings}
+              agentSlug={agent.slug}
+              onViewDetails={(listingId) => {
+                const listing = filteredListings.find(l => l.id === listingId);
+                if (listing) {
+                  navigate(`/agent/${agent.slug}/listing/${createSlug(listing.title)}`);
+                }
+              }}
+            />
+          ) : (
+            <div className="text-center py-12">
+              <div className="bg-white rounded-lg p-8 shadow-sm border border-gray-200 max-w-md mx-auto">
+                <Filter className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-xl font-bold mb-2">No listings found</h3>
+                <p className="text-[var(--portal-text-secondary)] mb-4">
+                  Try adjusting your filters to see more properties
+                </p>
+                <Button onClick={clearAllFilters} variant="outline" className="border-red-200 text-red-500 hover:bg-red-50">
+                  Clear all filters
+                </Button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

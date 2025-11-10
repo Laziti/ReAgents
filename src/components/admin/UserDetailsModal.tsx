@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 interface User {
   id: string;
@@ -109,7 +110,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
         setUserEmail(profile.email);
       }
     } catch (error) {
-      console.error('Error fetching user email:', error);
+      logger.error('Error fetching user email:', error);
     }
   };
 
@@ -151,7 +152,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
 
       setListings(listingsWithStats);
     } catch (error) {
-      console.error('Error fetching user listings:', error);
+      logger.error('Error fetching user listings:', error);
       toast.error('Failed to fetch listings');
     } finally {
       setLoading(false);
@@ -164,7 +165,7 @@ const UserDetailsModal = ({ user, open, onOpenChange, onDelete }: UserDetailsMod
   };
 
   const renderLimitBadge = (limit?: { type: string; value?: number }) => {
-    if (!limit) return <span className="text-red-600 font-semibold">Default (5/month)</span>;
+    if (!limit) return <span className="text-red-600 font-semibold">Default (10/month)</span>;
     if (limit.type === 'unlimited') {
       return <Badge variant="outline" className="bg-blue-50 text-red-600 border-red-200">Unlimited</Badge>;
     }

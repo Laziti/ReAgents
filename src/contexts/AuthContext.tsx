@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Database } from '@/integrations/supabase/types';
+import { logger } from '@/lib/logger';
 
 type SignUpParams = {
   email: string;
@@ -88,15 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
 
         if (checkError) {
-          console.error(`Error checking user role (attempt ${retryCount + 1}):`, checkError);
+          logger.error(`Error checking user role (attempt ${retryCount + 1}):`, checkError);
         } else if (existingRole) {
           // Role exists, set it
           setUserRole(existingRole.role === 'super_admin' ? 'super_admin' : 'agent');
           roleAssigned = true;
-          console.log('User role found:', existingRole.role);
+          logger.log('User role found:', existingRole.role);
         } else {
           // No role found, create one
-          console.log('No role found, creating default agent role');
+          logger.log('No role found, creating default agent role');
           const { error: createError } = await supabase
             .from('user_roles')
             .insert({
@@ -105,15 +106,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
 
           if (createError) {
-            console.error(`Error creating user role (attempt ${retryCount + 1}):`, createError);
+            logger.error(`Error creating user role (attempt ${retryCount + 1}):`, createError);
           } else {
             setUserRole('agent');
             roleAssigned = true;
-            console.log('Default agent role created successfully');
+            logger.log('Default agent role created successfully');
           }
         }
       } catch (error) {
-        console.error(`Error in fetchUserRole (attempt ${retryCount + 1}):`, error);
+        logger.error(`Error in fetchUserRole (attempt ${retryCount + 1}):`, error);
       }
 
       if (!roleAssigned) {
@@ -126,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (!roleAssigned) {
-      console.warn('Failed to fetch/create user role after all retries, defaulting to agent');
+      logger.warn('Failed to fetch/create user role after all retries, defaulting to agent');
       setUserRole('agent');
     }
   };
@@ -142,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
 
       if (profileError) {
-        console.error('Error fetching user profile:', profileError);
+        logger.error('Error fetching user profile:', profileError);
         setUserStatus(null);
         return;
       }
@@ -152,11 +153,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         // If no profile exists, don't create one automatically
         // Profiles should be created by the database trigger during signup
-        console.log('No profile found for user:', userId);
+        logger.log('No profile found for user:', userId);
         setUserStatus(null);
       }
     } catch (error) {
-      console.error('Error in fetchUserStatus:', error);
+      logger.error('Error in fetchUserStatus:', error);
       setUserStatus(null);
     }
   };
@@ -171,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        console.error('Sign in error:', error);
+        logger.error('Sign in error:', error);
         return { error };
       }
 
@@ -189,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error: null };
     } catch (error) {
-      console.error('Error in signIn:', error);
+      logger.error('Error in signIn:', error);
       return { error };
     }
   };
@@ -200,7 +201,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signUp({ email, password });
       return { error };
     } catch (error) {
-      console.error('Error in signUp:', error);
+      logger.error('Error in signUp:', error);
       return { error };
     }
   };
@@ -211,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await supabase.auth.signOut();
       navigate('/auth');
     } catch (error) {
-      console.error('Error in signOut:', error);
+      logger.error('Error in signOut:', error);
     }
   };
 
@@ -221,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
-        console.error('Error refreshing token:', error);
+        logger.error('Error refreshing token:', error);
         return;
       }
       
@@ -236,7 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         fetchUserStatus(newSession.user.id);
       }
     } catch (error) {
-      console.error('Error refreshing session:', error);
+      logger.error('Error refreshing session:', error);
     }
   };
 

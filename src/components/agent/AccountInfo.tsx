@@ -10,6 +10,9 @@ import { ExternalLink, Clipboard, Check, AlertCircle, Loader2 } from 'lucide-rea
 import type { Database } from '@/types/supabase';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
+import { uploadToR2 } from '@/lib/upload';
+import { logger } from '@/lib/logger';
+import { sanitizeInput, sanitizeUrl, sanitizePhoneNumber } from '@/lib/sanitize';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type ListingLimitType = NonNullable<Profile['listing_limit']>;
@@ -22,23 +25,23 @@ interface AccountInfoProps {
 const PLAN_DETAILS = {
   'free': {
     name: 'Free Tier',
-    listingsPerMonth: 5,
+    listingsPerMonth: 10,
     price: 0,
   },
   'monthly-basic': {
     name: 'Monthly Basic',
-    listingsPerMonth: 20,
+    listingsPerMonth: 30,
     price: 300,
   },
   'monthly-premium': {
     name: 'Monthly Premium',
     listingsPerMonth: 50,
-    price: 1200,
+    price: 500,
   },
   'semi-annual': {
     name: 'Semi-Annual',
-    listingsPerMonth: 100,
-    price: 3000,
+    listingsPerMonth: 50,
+    price: 2500,
   }
 };
 
@@ -47,7 +50,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
   const [profile, setProfile] = useState<Profile | null>(initialProfile || null);
   const [listingLimit, setListingLimit] = useState<ListingLimitType>({
     type: 'month',
-    value: 5
+    value: 10
   });
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -120,20 +123,27 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
           .maybeSingle();
 
         if (error) {
-          console.error('Error fetching profile:', error);
+          logger.error('Error fetching profile:', error);
           setError('Failed to load profile');
           // Do not set profile to null, retain last known profile or show error state properly
           return;
         }
 
         if (!data) {
-          console.warn('No profile found for user');
-          // Auto-create a minimal profile for the user
+          logger.warn('No profile found for user');
+          // Auto-create a minimal profile for the user with default listing limit of 10
           const { error: insertError } = await supabase
             .from('profiles')
-            .insert([{ id: user.id, user_id: user.id, first_name: user.user_metadata?.first_name || '', last_name: user.user_metadata?.last_name || '' }]);
+            .insert([{ 
+              id: user.id, 
+              user_id: user.id, 
+              first_name: user.user_metadata?.first_name || '', 
+              last_name: user.user_metadata?.last_name || '',
+              listing_limit: { type: 'month', value: 10 },
+              subscription_status: 'free'
+            }]);
           if (insertError) {
-            console.error('Error creating profile:', insertError);
+            logger.error('Error creating profile:', insertError);
             setError('Failed to create profile');
             setLoading(false);
             return;
@@ -153,8 +163,13 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
           setWhatsappLink(newProfile.whatsapp_link || '');
           setTelegramLink(newProfile.telegram_link || '');
           setPhoneNumber(newProfile.phone_number || '');
+          // Set listing limit, using subscription_details if listing_limit is null
           if (newProfile.listing_limit) {
             setListingLimit(newProfile.listing_limit);
+          } else if (newProfile.subscription_details?.listings_per_month) {
+            setListingLimit({ type: 'month', value: newProfile.subscription_details.listings_per_month });
+          } else {
+            setListingLimit({ type: 'month', value: 10 });
           }
           setLoading(false);
           return;
@@ -164,11 +179,16 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
         setWhatsappLink(data.whatsapp_link || '');
         setTelegramLink(data.telegram_link || '');
         setPhoneNumber(data.phone_number || '');
+        // Set listing limit, using subscription_details if listing_limit is null
         if (data.listing_limit) {
           setListingLimit(data.listing_limit);
+        } else if (data.subscription_details?.listings_per_month) {
+          setListingLimit({ type: 'month', value: data.subscription_details.listings_per_month });
+        } else {
+          setListingLimit({ type: 'month', value: 10 });
         }
       } catch (error) {
-        console.error('Error fetching profile:', error);
+        logger.error('Error fetching profile:', error);
         setError('An unexpected error occurred');
         // Do not set profile to null, retain last known profile or show error state properly
       } finally {
@@ -190,6 +210,14 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
       setWhatsappLink(initialProfile.whatsapp_link || '');
       setTelegramLink(initialProfile.telegram_link || '');
       setPhoneNumber(initialProfile.phone_number || '');
+      // Set listing limit, using subscription_details if listing_limit is null
+      if (initialProfile.listing_limit) {
+        setListingLimit(initialProfile.listing_limit);
+      } else if (initialProfile.subscription_details?.listings_per_month) {
+        setListingLimit({ type: 'month', value: initialProfile.subscription_details.listings_per_month });
+      } else {
+        setListingLimit({ type: 'month', value: 10 });
+      }
     }
   }, [initialProfile]);
 
@@ -309,24 +337,9 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
     setUploading(true);
     setError(null);
 
-    const fileExtension = file.name.split('.').pop();
-    const fileName = `${user.id}_${Date.now()}.${fileExtension}`;
-    const filePath = `pp/${fileName}`;
-
     try {
-      const { error: uploadError } = await supabase.storage
-        .from('profile-avatars')
-        .upload(filePath, file, { cacheControl: '3600', upsert: true });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('profile-avatars')
-        .getPublicUrl(filePath);
-      
-      const publicUrl = publicUrlData?.publicUrl;
+      // Upload avatar to R2
+      const publicUrl = await uploadToR2(file, 'profile-avatars');
 
       if (!publicUrl) {
         throw new Error('Failed to get public URL for avatar.');
@@ -343,7 +356,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
       }
 
       setProfile(prevProfile => prevProfile ? { ...prevProfile, avatar_url: publicUrl } : null);
-      console.log('Avatar uploaded and profile updated successfully!', publicUrl);
+      logger.log('Avatar uploaded and profile updated successfully!', publicUrl);
 
       // Trigger a refresh of parent component if onRefresh is provided
       if (onRefresh) {
@@ -351,7 +364,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
       }
 
     } catch (error: any) {
-      console.error('Error uploading avatar:', error);
+      logger.error('Error uploading avatar:', error);
       setError(`Failed to upload avatar: ${error.message || JSON.stringify(error)}`);
     } finally {
       setUploading(false);
@@ -368,12 +381,17 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
     setError(null);
 
     try {
+      // Sanitize inputs before updating
+      const sanitizedWhatsappLink = whatsappLink ? sanitizeUrl(whatsappLink) : null;
+      const sanitizedTelegramLink = telegramLink ? sanitizeUrl(telegramLink) : null;
+      const sanitizedPhoneNumber = phoneNumber ? sanitizePhoneNumber(phoneNumber) : null;
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
-          whatsapp_link: whatsappLink,
-          telegram_link: telegramLink,
-          phone_number: phoneNumber,
+          whatsapp_link: sanitizedWhatsappLink,
+          telegram_link: sanitizedTelegramLink,
+          phone_number: sanitizedPhoneNumber,
         })
         .eq('id', profile.id);
 
@@ -383,11 +401,11 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
 
       setProfile(prevProfile => prevProfile ? {
         ...prevProfile,
-        whatsapp_link: whatsappLink,
-        telegram_link: telegramLink,
-        phone_number: phoneNumber,
+        whatsapp_link: sanitizedWhatsappLink,
+        telegram_link: sanitizedTelegramLink,
+        phone_number: sanitizedPhoneNumber,
       } : null);
-      console.log('Profile contact details updated successfully!');
+      logger.log('Profile contact details updated successfully!');
       setError('Profile updated successfully!'); // Success message
       setTimeout(() => {
         setError(null);
@@ -398,7 +416,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
       }
 
     } catch (error: any) {
-      console.error('Error saving profile:', error);
+      logger.error('Error saving profile:', error);
       setError(`Failed to save profile: ${error.message || JSON.stringify(error)}`);
     } finally {
       setIsSaving(false);

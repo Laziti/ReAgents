@@ -9,12 +9,13 @@ import CreateListingForm from '@/components/agent/CreateListingForm';
 import EditListingForm from '@/components/agent/EditListingForm';
 import AccountInfo from '@/components/agent/AccountInfo';
 import DashboardContent from '@/components/agent/DashboardContent';
-import { Loader2, Plus, X, Building, Copy, Share2, Check, Rocket, Globe, Facebook, Twitter, Linkedin, MessageCircle, Send, Eye } from 'lucide-react';
+import { Loader2, Plus, X, Building, Copy, Share2, Check, Rocket, Globe, Facebook, Twitter, Linkedin, MessageCircle, Send, Eye, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import '@/styles/portal-theme.css';
 import { createSlug } from '@/lib/formatters';
 import UpgradeSidebar from '@/components/agent/UpgradeSidebar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { logger } from '@/lib/logger';
 
 const AgentDashboard = () => {
   const { user, userStatus, signOut, refreshSession } = useAuth();
@@ -33,6 +34,7 @@ const AgentDashboard = () => {
   const lastRefreshTime = useRef(0);
   const refreshCooldown = 10000; // 10 seconds cooldown between refreshes
   const [isSharePopoverOpen, setIsSharePopoverOpen] = useState(false);
+  const [isMobileSharePopoverOpen, setIsMobileSharePopoverOpen] = useState(false);
 
   const fetchListings = async () => {
     if (!user) return;
@@ -48,28 +50,28 @@ const AgentDashboard = () => {
         } catch (error) {
           // If we hit rate limit, continue with current session
           if (error?.message?.includes('rate limit')) {
-            console.warn('Rate limit hit for session refresh, continuing with current session');
+            logger.warn('Rate limit hit for session refresh, continuing with current session');
           } else {
             throw error;
           }
         }
       }
       
-      // Force fresh data with no caching
+      // Force fresh data with no caching (include expires_at and views for agent portal)
       const { data, error } = await supabase
         .from('listings')
-        .select('*')
+        .select('*, expires_at, views')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setListings(data || []);
     } catch (error) {
-      console.error('Error fetching listings:', error);
+      logger.error('Error fetching listings:', error);
       // If we hit rate limit, show a user-friendly message
       if (error?.message?.includes('rate limit')) {
         // You might want to show this in the UI
-        console.warn('Please wait a moment before refreshing again');
+        logger.warn('Please wait a moment before refreshing again');
       }
     } finally {
       setLoading(false);
@@ -99,17 +101,17 @@ const AgentDashboard = () => {
         navigator.clipboard.writeText(text)
           .then(successCallback)
           .catch(err => {
-            console.log('Clipboard API failed, trying fallback', err);
+            logger.log('Clipboard API failed, trying fallback', err);
             // Fallback for browsers that don't support the Clipboard API
             fallbackCopyToClipboard(text, successCallback);
           });
       } else {
-        console.log('Using fallback clipboard approach');
+        logger.log('Using fallback clipboard approach');
         // For non-secure contexts or older browsers
         fallbackCopyToClipboard(text, successCallback);
       }
     } catch (err) {
-      console.error('Copy operation failed completely', err);
+      logger.error('Copy operation failed completely', err);
     }
   };
 
@@ -193,6 +195,7 @@ const AgentDashboard = () => {
 
     window.open(url, '_blank');
     setIsSharePopoverOpen(false);
+    setIsMobileSharePopoverOpen(false);
   };
 
   useEffect(() => {
@@ -243,10 +246,10 @@ const AgentDashboard = () => {
           await fetchListings();
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        logger.error('Error fetching data:', error);
         // If we hit rate limit, show a user-friendly message
         if (error?.message?.includes('rate limit')) {
-          console.warn('Please wait a moment before refreshing again');
+          logger.warn('Please wait a moment before refreshing again');
         }
       } finally {
         setLoading(false);
@@ -261,11 +264,18 @@ const AgentDashboard = () => {
     };
   }, [user, userStatus, navigate]);
 
-  // Handle navigation to create listing page
+  // Handle navigation to routes when tabs are clicked
   useEffect(() => {
     if (activeTab === 'create') {
       navigate('/agent/image-selection');
+    } else if (activeTab === 'listings') {
+      navigate('/agent/listings');
+    } else if (activeTab === 'account') {
+      navigate('/agent/account');
+    } else if (activeTab === 'upgrade') {
+      navigate('/agent/upgrade');
     }
+    // Note: dashboard tab stays on /dashboard, no navigation needed
   }, [activeTab, navigate]);
 
   const handleEditListing = (listingId) => {
@@ -301,75 +311,206 @@ const AgentDashboard = () => {
   );
 
   return (
-    <div className="flex h-screen bg-[var(--portal-bg)]">
-      <AgentSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="flex h-screen bg-[var(--portal-bg)] overflow-hidden md:overflow-hidden">
+      <AgentSidebar activeTab={activeTab} />
       
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[var(--portal-border)]">
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-[var(--portal-text)] md:block hidden">
-              {activeTab === 'dashboard' && 'Dashboard'}
-              {activeTab === 'listings' && 'My Properties'}
-              {activeTab === 'create' && 'Create New Listing'}
-              {activeTab === 'edit' && 'Edit Listing'}
-              {activeTab === 'account' && 'Account Information'}
-              {activeTab === 'upgrade' && 'Upgrade to Pro'}
-            </h1>
-          </div>
-          
-          {/* Share Profile Button */}
-          <div className="flex items-center gap-2 md:justify-end w-full md:w-auto mt-4 md:mt-0 justify-center">
-            <Popover open={isSharePopoverOpen} onOpenChange={setIsSharePopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="bg-white border border-red-500 text-red-600 hover:bg-red-50 hover:text-black font-semibold"
+      <div className="flex-1 flex flex-col overflow-hidden md:overflow-hidden min-h-0">
+        {/* Professional Header */}
+        <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+          {/* Desktop Header */}
+          <div className="hidden md:flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-gray-900">
+                {activeTab === 'dashboard' && 'Dashboard'}
+                {activeTab === 'listings' && 'My Properties'}
+                {activeTab === 'create' && 'Create New Listing'}
+                {activeTab === 'edit' && 'Edit Listing'}
+                {activeTab === 'account' && 'Account Information'}
+                {activeTab === 'upgrade' && 'Upgrade to Pro'}
+              </h1>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Popover open={isSharePopoverOpen} onOpenChange={setIsSharePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="default"
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share Profile
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  className="w-56 p-2 bg-white border-gray-200 shadow-lg rounded-lg z-[100]"
+                  side="bottom"
+                  align="end"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
                 >
-                  <Share2 className="h-4 w-4 mr-2" />
-                  Share My Profile
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-2 bg-[var(--portal-card-bg)] border-[var(--portal-border)] shadow-lg rounded-md">
-                <div className="grid gap-2">
-                  <Button
-                    variant="ghost"
-                    className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                    onClick={copyProfileLinkFromHeader}
-                  >
-                    {copied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
-                    {copied ? 'Link Copied!' : 'Copy Link'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                    onClick={() => handleShareToSocial('whatsapp')}
-                  >
-                    <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="justify-start text-[var(--portal-text)] hover:bg-[var(--portal-bg-hover)]"
-                    onClick={() => handleShareToSocial('telegram')}
-                  >
-                    <Send className="h-4 w-4 mr-2 text-blue-500" /> Telegram
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-            <Button
-              variant="outline"
-              className="bg-white border border-red-500 text-red-600 hover:bg-red-50 hover:text-black font-semibold"
-              onClick={() => window.open(`/agent/${profileData?.slug || ''}`, '_blank')}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              View My Profile
-            </Button>
+                  <div className="grid gap-2">
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-gray-700 hover:bg-gray-50 w-full"
+                      onClick={() => {
+                        copyProfileLinkFromHeader();
+                        setIsSharePopoverOpen(false);
+                      }}
+                    >
+                      {copied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
+                      {copied ? 'Link Copied!' : 'Copy Link'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-gray-700 hover:bg-gray-50 w-full"
+                      onClick={() => {
+                        handleShareToSocial('whatsapp');
+                        setIsSharePopoverOpen(false);
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="justify-start text-gray-700 hover:bg-gray-50 w-full"
+                      onClick={() => {
+                        handleShareToSocial('telegram');
+                        setIsSharePopoverOpen(false);
+                      }}
+                    >
+                      <Send className="h-4 w-4 mr-2 text-blue-500" /> Telegram
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button
+                variant="default"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => window.open(`/agent/${profileData?.slug || ''}`, '_blank')}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View Profile
+              </Button>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile Header - Professional Design */}
+          <div className="md:hidden">
+            {/* Top Bar with User Info and Icons */}
+            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-red-50 to-white border-b border-gray-100">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Avatar */}
+                <div className="h-10 w-10 rounded-full overflow-hidden bg-red-100 flex items-center justify-center flex-shrink-0 border-2 border-white shadow-sm">
+                  {profileData?.avatar_url ? (
+                    <img 
+                      src={profileData.avatar_url} 
+                      alt={profileData.first_name || 'Profile'} 
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-red-600 font-semibold text-sm">
+                      {profileData?.first_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || 'A'}
+                    </span>
+                  )}
+                </div>
+                
+                {/* User Name and Title */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-semibold text-gray-900 truncate">
+                      {profileData?.first_name && profileData?.last_name
+                        ? `${profileData.first_name} ${profileData.last_name}`
+                        : user?.email?.split('@')[0] || 'Agent'}
+                    </h2>
+                    {/* PRO Badge if applicable */}
+                    {profileData?.subscription_status === 'pro' && (
+                      <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm flex-shrink-0">
+                        PRO
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 truncate">
+                    {profileData?.career || 'Real Estate Agent'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Icons - In one row */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Popover open={isMobileSharePopoverOpen} onOpenChange={setIsMobileSharePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="h-9 w-9 rounded-md flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
+                    >
+                      <Share2 className="h-5 w-5" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    className="w-56 p-2 bg-white border-gray-200 shadow-lg rounded-lg z-[100]"
+                    side="bottom"
+                    align="end"
+                    onOpenAutoFocus={(e) => e.preventDefault()}
+                  >
+                    <div className="grid gap-2">
+                      <Button
+                        variant="ghost"
+                        className="justify-start text-gray-700 hover:bg-gray-50 w-full"
+                        onClick={() => {
+                          copyProfileLinkFromHeader();
+                          setIsMobileSharePopoverOpen(false);
+                        }}
+                      >
+                        {copied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
+                        {copied ? 'Link Copied!' : 'Copy Link'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="justify-start text-gray-700 hover:bg-gray-50 w-full"
+                        onClick={() => {
+                          handleShareToSocial('whatsapp');
+                          setIsMobileSharePopoverOpen(false);
+                        }}
+                      >
+                        <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        className="justify-start text-gray-700 hover:bg-gray-50 w-full"
+                        onClick={() => {
+                          handleShareToSocial('telegram');
+                          setIsMobileSharePopoverOpen(false);
+                        }}
+                      >
+                        <Send className="h-4 w-4 mr-2 text-blue-500" /> Telegram
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-gray-600 hover:bg-gray-100"
+                  onClick={() => window.open(`/agent/${profileData?.slug || ''}`, '_blank')}
+                >
+                  <Eye className="h-5 w-5" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-gray-600 hover:bg-gray-100"
+                  onClick={() => setActiveTab('account')}
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
         
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 pb-24 md:pb-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 pb-24 md:pb-6 min-h-0" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
               {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-8 w-8 text-gold-500 animate-spin" />

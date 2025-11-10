@@ -14,13 +14,24 @@ import Index from "./pages/Index";
 import AdminListingsPage from "./pages/AdminListingsPage";
 import AgentPublicProfile from "./pages/AgentPublicProfile";
 import ListingDetail from "./pages/ListingDetail";
-import PendingApproval from "./pages/PendingApproval";
 import ReceiptUpload from "./pages/ReceiptUpload";
 import ImageSelection from "./pages/ImageSelection";
 import ListingDetails from "./pages/ListingDetails";
+import AgentListingsPage from "./pages/AgentListingsPage";
+import AgentAccountPage from "./pages/AgentAccountPage";
+import AgentUpgradePage from "./pages/AgentUpgradePage";
+import ErrorBoundary from "./components/ErrorBoundary";
 import './styles/portal-theme.css';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 const AppRoutes = () => {
   return (
@@ -29,7 +40,6 @@ const AppRoutes = () => {
       <Route path="/auth" element={<Auth />} />
       
       {/* Public Pages */}
-      <Route path="/pending" element={<PendingApproval />} />
       <Route path="/not-found" element={<NotFound />} />
       
       {/* Public Agent Profile Routes - These must come before protected routes */}
@@ -103,6 +113,30 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      <Route 
+        path="/agent/listings" 
+        element={
+          <ProtectedRoute allowedRoles={['agent']}>
+            <AgentListingsPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/agent/account" 
+        element={
+          <ProtectedRoute allowedRoles={['agent']}>
+            <AgentAccountPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/agent/upgrade" 
+        element={
+          <ProtectedRoute allowedRoles={['agent']}>
+            <AgentUpgradePage />
+          </ProtectedRoute>
+        } 
+      />
       
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -110,13 +144,15 @@ const AppRoutes = () => {
 };
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

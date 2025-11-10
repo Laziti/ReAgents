@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { logger } from '@/lib/logger';
 
 type ListingLimitType = 'day' | 'week' | 'month' | 'year' | 'unlimited';
 type SubscriptionStatus = 'free' | 'pro';
@@ -59,7 +60,7 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
       career: user.career || '',
         subscription_status: user.subscription_status || 'free',
         subscription_end: user.subscription_end,
-        listing_limit: user.listing_limit || { type: 'month', value: 5 },
+        listing_limit: user.listing_limit || { type: 'month', value: 10 },
         social_links: user.social_links || {}
       });
     }
@@ -94,7 +95,7 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
         career: formData.career?.trim() || null,
         subscription_status: formData.subscription_status || 'free',
         subscription_end,
-        listing_limit: formData.listing_limit || { type: 'month', value: 5 },
+        listing_limit: formData.listing_limit || { type: 'month', value: 10 },
         social_links: formData.social_links || {}
       };
 
@@ -111,7 +112,7 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
       onUserUpdated();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error updating user:', error);
+      logger.error('Error updating user:', error);
       toast.error(error.message || 'Error updating user');
     } finally {
       setLoading(false);
@@ -277,7 +278,7 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
                         ...prev,
                         listing_limit: {
                           type: value,
-                          value: value === 'unlimited' ? undefined : (prev.listing_limit?.value || 5)
+                          value: value === 'unlimited' ? undefined : (prev.listing_limit?.value || 10)
                         }
                       }))
                     }
@@ -307,7 +308,7 @@ const UserEditModal = ({ user, open, onOpenChange, onUserUpdated }: UserEditModa
                         ...prev,
                         listing_limit: {
                           ...prev.listing_limit,
-                          value: parseInt(e.target.value) || 5
+                          value: parseInt(e.target.value) || 10
                         }
                       }))}
                     />

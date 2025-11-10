@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/formatters';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { logger } from '@/lib/logger';
 
 interface UserInfo {
   id: string;
@@ -102,7 +103,7 @@ const ListingDetailsModal = ({ listing, open, onOpenChange, onStatusChange }: Li
         email: userEmail
       });
     } catch (error) {
-      console.error('Error fetching owner info:', error);
+      logger.error('Error fetching owner info:', error);
     } finally {
       setLoading(false);
     }
@@ -131,7 +132,7 @@ const ListingDetailsModal = ({ listing, open, onOpenChange, onStatusChange }: Li
       }
       
     } catch (error: any) {
-      console.error('Error updating listing:', error);
+      logger.error('Error updating listing:', error);
     } finally {
       setUpdating(false);
     }
@@ -150,7 +151,7 @@ const ListingDetailsModal = ({ listing, open, onOpenChange, onStatusChange }: Li
       onOpenChange(false);
       if (onStatusChange) onStatusChange();
     } catch (error) {
-      console.error('Error deleting listing:', error);
+      logger.error('Error deleting listing:', error);
     } finally {
       setDeleting(false);
     }

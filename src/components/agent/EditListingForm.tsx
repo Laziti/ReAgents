@@ -4,6 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { uploadToR2, uploadMultipleToR2 } from '@/lib/upload';
+import { useObjectUrl, useObjectUrls } from '@/hooks/useObjectUrl';
+import { logger } from '@/lib/logger';
+import { sanitizeInput, sanitizeUrl, sanitizePhoneNumber, sanitizeHtml } from '@/lib/sanitize';
 import { 
   Form,
   FormControl,
@@ -19,8 +23,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Upload, X, Plus } from 'lucide-react';
 
 const listingSchema = z.object({
-  title: z.string().min(5, 'Title must be at least 5 characters'),
-  description: z.string().min(20, 'Description must be at least 20 characters'),
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().min(1, 'Description is required'),
   price: z.preprocess((val) => val === '' || val === undefined ? undefined : Number(val), z.number().positive('Price must be a positive number').optional()),
   city: z.enum([
     'Addis Ababa',
@@ -54,7 +58,8 @@ const listingSchema = z.object({
   phone_number: z.string().optional(),
   whatsapp_link: z.string().optional(),
   telegram_link: z.string().optional(),
-  callForPrice: z.boolean().optional()
+  callForPrice: z.boolean().optional(),
+  bank_option: z.boolean().optional()
 });
 
 type ListingFormValues = z.infer<typeof listingSchema>;
@@ -70,12 +75,20 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [mainImage, setMainImage] = useState<File | null>(null);
-  const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
   const [existingMainImageUrl, setExistingMainImageUrl] = useState<string | null>(null);
   const [additionalImages, setAdditionalImages] = useState<File[]>([]);
-  const [additionalImagePreviews, setAdditionalImagePreviews] = useState<string[]>([]);
   const [existingAdditionalImageUrls, setExistingAdditionalImageUrls] = useState<string[]>([]);
   const [editCount, setEditCount] = useState(0);
+  
+  // Use hooks to safely manage object URLs
+  const newMainImagePreview = useObjectUrl(mainImage);
+  const newAdditionalImagePreviews = useObjectUrls(additionalImages);
+  
+  // Use new preview if available, otherwise use existing
+  const mainImagePreview = newMainImagePreview || existingMainImageUrl;
+  
+  // Combine existing and new previews
+  const allAdditionalPreviews = [...existingAdditionalImageUrls, ...newAdditionalImagePreviews];
   
 
   const form = useForm<ListingFormValues>({
@@ -88,7 +101,8 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
       phone_number: '',
       whatsapp_link: '',
       telegram_link: '',
-      callForPrice: false
+      callForPrice: false,
+      bank_option: false
     }
   });
 
@@ -130,21 +144,20 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
           phone_number: data.phone_number || '',
           whatsapp_link: data.whatsapp_link || '',
           telegram_link: data.telegram_link || '',
-          callForPrice: data.price === null
+          callForPrice: data.price === null,
+          bank_option: data.bank_option || false
         });
 
         // Set existing images
         if (data.main_image_url) {
           setExistingMainImageUrl(data.main_image_url);
-          setMainImagePreview(data.main_image_url);
         }
 
         if (data.additional_image_urls && Array.isArray(data.additional_image_urls)) {
           setExistingAdditionalImageUrls(data.additional_image_urls);
-          setAdditionalImagePreviews(data.additional_image_urls);
         }
       } catch (error: any) {
-        console.error('Error fetching listing:', error);
+        logger.error('Error fetching listing:', error);
         onCancel();
       } finally {
         setIsLoading(false);
@@ -158,7 +171,6 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setMainImage(file);
-      setMainImagePreview(URL.createObjectURL(file));
       setExistingMainImageUrl(null); // Clear existing image URL when new image is selected
     }
   };
@@ -167,15 +179,11 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       setAdditionalImages(prev => [...prev, ...filesArray]);
-      
-      const newPreviews = filesArray.map(file => URL.createObjectURL(file));
-      setAdditionalImagePreviews(prev => [...prev, ...newPreviews]);
     }
   };
 
   const removeMainImage = () => {
     setMainImage(null);
-    setMainImagePreview(null);
     setExistingMainImageUrl(null);
   };
 
@@ -190,13 +198,7 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
       // Calculate the index in the new images array
       const newImageIndex = index - existingAdditionalImageUrls.length;
       setAdditionalImages(prev => prev.filter((_, i) => i !== newImageIndex));
-      
-      // Revoke the URL to prevent memory leaks for newly added images
-      URL.revokeObjectURL(additionalImagePreviews[index]);
     }
-    
-    // Update previews
-    setAdditionalImagePreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const onSubmit = async (values: ListingFormValues) => {
@@ -222,54 +224,27 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
       let mainImageUrl = existingMainImageUrl;
       const additionalImageUrls: string[] = [...existingAdditionalImageUrls];
 
-      // 1. Upload main image if changed
+      // 1. Upload main image to R2 if changed
       if (mainImage) {
-        const mainImageFileName = `${user.id}/${Date.now()}-${mainImage.name}`;
-        const { data: mainImageData, error: mainImageError } = await supabase.storage
-          .from('listing-images')
-          .upload(mainImageFileName, mainImage);
-
-        if (mainImageError) throw mainImageError;
-
-        // Get the public URL for the main image
-        const { data: mainImagePublicUrl } = supabase.storage
-          .from('listing-images')
-          .getPublicUrl(mainImageFileName);
-          
-        mainImageUrl = mainImagePublicUrl.publicUrl;
+        mainImageUrl = await uploadToR2(mainImage, 'listing-images');
       }
 
-      // 2. Upload additional images if any new ones were added
-      for (let i = 0; i < additionalImages.length; i++) {
-        const file = additionalImages[i];
-        const fileName = `${user.id}/${Date.now()}-${i}-${file.name}`;
-        
-        const { data: additionalImageData, error: additionalImageError } = await supabase.storage
-          .from('listing-images')
-          .upload(fileName, file);
-          
-        if (additionalImageError) {
-          console.error(`Error uploading additional image ${i}:`, additionalImageError);
-          continue;
-        }
-        
-        const { data: publicUrl } = supabase.storage
-          .from('listing-images')
-          .getPublicUrl(fileName);
-          
-        additionalImageUrls.push(publicUrl.publicUrl);
+      // 2. Upload additional images to R2 if any new ones were added
+      if (additionalImages.length > 0) {
+        const uploadedUrls = await uploadMultipleToR2(additionalImages, 'listing-images');
+        additionalImageUrls.push(...uploadedUrls);
       }
 
       // Log exact values before update
-      console.log('[EditForm] Form values before update:', values);
-      console.log('[EditForm] Price before update:', values.price);
-      console.log('[EditForm] Price type before update:', typeof values.price);
+      logger.log('[EditForm] Form values before update:', values);
+      logger.log('[EditForm] Price before update:', values.price);
+      logger.log('[EditForm] Price type before update:', typeof values.price);
       
       // Ensure price is a clean number or null if callForPrice
       const exactPrice = values.callForPrice ? null : Number(values.price);
-      console.log('[EditForm] Exact price to store:', exactPrice);
-      console.log('[EditForm] Exact price type:', typeof exactPrice);
-      console.log('[EditForm] Price toString():', exactPrice.toString());
+      logger.log('[EditForm] Exact price to store:', exactPrice);
+      logger.log('[EditForm] Exact price type:', typeof exactPrice);
+      logger.log('[EditForm] Price toString():', exactPrice !== null ? exactPrice.toString() : 'null');
       
       const { data: listing, error: listingError } = await supabase
         .from('listings')
@@ -283,23 +258,24 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
           phone_number: values.phone_number || null,
           whatsapp_link: values.whatsapp_link || null,
           telegram_link: values.telegram_link || null,
+          bank_option: values.bank_option || false,
           edit_count: editCount + 1
         })
         .eq('id', listingId)
         .eq('user_id', user.id)
-        .select('id, title, description, price, city, main_image_url, additional_image_urls, phone_number, whatsapp_link, telegram_link, updated_at')
+        .select('id, title, description, price, city, main_image_url, additional_image_urls, phone_number, whatsapp_link, telegram_link, bank_option, updated_at')
         .single();
 
       if (listingError) throw listingError;
       
       // Log the returned data
-      console.log('[EditForm] Updated listing response:', listing);
-      console.log('[EditForm] Updated price from response:', listing.price);
-      console.log('[EditForm] Updated price type:', typeof listing.price);
+      logger.log('[EditForm] Updated listing response:', listing);
+      logger.log('[EditForm] Updated price from response:', listing.price);
+      logger.log('[EditForm] Updated price type:', typeof listing.price);
 
       onSuccess();
     } catch (error: any) {
-      console.error('Error updating listing:', error);
+      logger.error('Error updating listing:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -314,15 +290,15 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 p-4 sm:p-0">
       <div>
-        <h2 className="text-2xl font-semibold text-[var(--portal-text)]">Edit Listing</h2>
-        <p className="text-[var(--portal-text-secondary)]">Update your property listing information</p>
+        <h2 className="text-xl sm:text-2xl font-semibold text-[var(--portal-text)]">Edit Listing</h2>
+        <p className="text-sm sm:text-base text-[var(--portal-text-secondary)]">Update your property listing information</p>
       </div>
       
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="grid gap-8 md:grid-cols-2">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
+          <div className="grid gap-6 sm:gap-8 md:grid-cols-2">
             <div>
               <h3 className="text-lg font-medium mb-4 text-[var(--portal-text)]">Images</h3>
               
@@ -367,7 +343,7 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
                 <div>
                   <FormLabel className="block mb-2 text-[var(--portal-label-text)]">Additional Images</FormLabel>
                   <div className="grid grid-cols-2 gap-2">
-                    {additionalImagePreviews.map((preview, index) => (
+                    {allAdditionalPreviews.map((preview, index) => (
                       <div key={index} className="relative rounded-lg overflow-hidden">
                         <img 
                           src={preview} 
@@ -387,7 +363,7 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
                       </div>
                     ))}
                     
-                    {additionalImagePreviews.length < 5 && (
+                    {allAdditionalPreviews.length < 5 && (
                       <div className="border border-dashed border-[var(--portal-border)] rounded-lg flex items-center justify-center h-24">
                         <label className="cursor-pointer block w-full h-full flex flex-col items-center justify-center">
                           <Plus className="h-5 w-5 text-[var(--portal-text-secondary)] mb-1" />
@@ -418,7 +394,12 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
                   <FormItem>
                     <FormLabel className="text-[var(--portal-label-text)]">Title <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter property title" {...field} className="bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border-[var(--portal-input-border)]" />
+                      <Input 
+                        placeholder="Enter property title" 
+                        {...field}
+                        onChange={(e) => field.onChange(sanitizeInput(e.target.value))}
+                        className="bg-[var(--portal-input-bg)] text-[var(--portal-input-text)] border-[var(--portal-input-border)]" 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -444,9 +425,9 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
                           // Only allow numeric values
                           if (rawValue === '' || /^\d+$/.test(rawValue)) {
                             const value = rawValue === '' ? undefined : parseInt(rawValue, 10);
-                            console.log('[EditForm] Raw input value:', rawValue);
-                            console.log('[EditForm] Parsed value:', value);
-                            console.log('[EditForm] Value type:', typeof value);
+                            logger.log('[EditForm] Raw input value:', rawValue);
+                            logger.log('[EditForm] Parsed value:', value);
+                            logger.log('[EditForm] Value type:', typeof value);
                             field.onChange(value);
                           }
                         }}
@@ -566,30 +547,41 @@ const EditListingForm = ({ listingId, onSuccess, onCancel }: EditListingFormProp
               )}
             />
 
-            <FormField name="callForPrice" control={form.control} render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-red-600 font-semibold">Call for Price</FormLabel>
-                <FormControl>
-                  <input type="checkbox" checked={field.value} onChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )} />
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+              <FormField name="callForPrice" control={form.control} render={({ field }) => (
+                <FormItem className="flex items-center gap-2">
+                  <FormControl>
+                    <input type="checkbox" checked={field.value} onChange={field.onChange} className="w-4 h-4" />
+                  </FormControl>
+                  <FormLabel className="text-red-600 font-semibold cursor-pointer mb-0">Call for Price</FormLabel>
+                </FormItem>
+              )} />
+
+              <FormField name="bank_option" control={form.control} render={({ field }) => (
+                <FormItem className="flex items-center gap-2">
+                  <FormControl>
+                    <input type="checkbox" checked={field.value} onChange={field.onChange} className="w-4 h-4" />
+                  </FormControl>
+                  <FormLabel className="text-[var(--portal-text)] font-semibold cursor-pointer mb-0">Bank Option Available</FormLabel>
+                </FormItem>
+              )} />
+            </div>
           </div>
           
-          <div className="flex justify-between pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-0 sm:justify-between pt-4">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onCancel}
               disabled={isSubmitting}
-              className="bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)] border-none"
+              className="w-full sm:w-auto bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)] border-none"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={isSubmitting}
-              className="bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)]"
+              className="w-full sm:w-auto bg-[var(--portal-button-bg)] text-[var(--portal-button-text)] hover:bg-[var(--portal-button-hover)]"
             >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Listing

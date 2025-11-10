@@ -91,11 +91,22 @@ serve(async (req) => {
     )
 
     // Create user with admin privileges
+    // Set created_by_admin flag to prevent the handle_new_user trigger from creating a profile
+    // We'll create the profile ourselves with all the correct values
+    const userMetadata = {
+      first_name: payload.user_metadata.first_name,
+      last_name: payload.user_metadata.last_name,
+      phone_number: payload.user_metadata.phone_number || null,
+      company: payload.user_metadata.company || null,
+      career: payload.user_metadata.career || 'real_estate_agent',
+      created_by_admin: true, // Prevent trigger from creating profile
+    };
+
     const { data: { user }, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
       email: payload.email,
       password: payload.password,
       email_confirm: true,
-      user_metadata: payload.user_metadata,
+      user_metadata: userMetadata,
     })
 
     if (createUserError) {
@@ -105,6 +116,10 @@ serve(async (req) => {
     if (!user) {
       throw new Error('Failed to create user')
     }
+
+    // Wait a moment for the trigger to complete (if it runs despite created_by_admin flag)
+    // This prevents race conditions
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Generate a simple slug from the user's name
     const baseSlug = `${payload.user_metadata.first_name}-${payload.user_metadata.last_name}`
@@ -137,73 +152,79 @@ serve(async (req) => {
       }
     }
 
-    // Create the profile with the unique slug
+    // Remove any existing profile with the same id to avoid duplicate key issues
+    const { error: deleteProfileError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', user.id)
+
+    if (deleteProfileError) {
+      console.error('Profile delete error before insert:', deleteProfileError)
+      // Non-fatal; continue and attempt insert anyway
+    }
+
+    const profileData = {
+      id: user.id,
+      user_id: user.id,
+      first_name: payload.user_metadata.first_name,
+      last_name: payload.user_metadata.last_name,
+      status: 'active',
+      listing_limit: { type: 'month', value: 10 },
+      subscription_status: 'free',
+      slug: finalSlug,
+      phone_number: payload.user_metadata.phone_number || null,
+      company: payload.user_metadata.company || null,
+      career: payload.user_metadata.career || 'real_estate_agent',
+      social_links: {},
+    };
+
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert({
-        id: user.id,
-        user_id: user.id,
-        first_name: payload.user_metadata.first_name,
-        last_name: payload.user_metadata.last_name,
-        status: 'active',
-        listing_limit: { type: 'month', value: 5 },
-        subscription_status: 'free',
-        social_links: {},
-        slug: finalSlug,
-        phone_number: payload.user_metadata.phone_number || '',
-        company: payload.user_metadata.company || '',
-      });
+      .insert(profileData)
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
-      console.error('Profile data being inserted:', {
+      console.error('Profile error details:', JSON.stringify(profileError, null, 2));
+      console.error('Profile data being upserted:', {
         id: user.id,
         user_id: user.id,
         first_name: payload.user_metadata.first_name,
         last_name: payload.user_metadata.last_name,
         status: 'active',
-        listing_limit: { type: 'month', value: 5 },
+        listing_limit: { type: 'month', value: 10 },
         subscription_status: 'free',
         social_links: {},
         slug: finalSlug,
-        phone_number: payload.user_metadata.phone_number || '',
-        company: payload.user_metadata.company || '',
+        phone_number: payload.user_metadata.phone_number || null,
+        company: payload.user_metadata.company || null,
+        career: payload.user_metadata.career || null,
       });
       // Clean up the created user since we couldn't create the profile
-      await supabaseAdmin.auth.admin.deleteUser(user.id);
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(user.id);
+      } catch (deleteError) {
+        console.error('Error deleting user during cleanup:', deleteError);
+      }
       throw new Error(`Failed to create user profile: ${profileError.message}. Please try again or contact support if the issue persists.`);
     }
 
-    // Create user role as 'agent' with retry logic
-    let roleCreated = false;
-    let retryCount = 0;
-    const maxRetries = 3;
+    // Create user role as 'agent' (use upsert to avoid duplicate errors)
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .upsert({
+        user_id: user.id,
+        role: 'agent'
+      }, { onConflict: 'user_id,role' });
 
-    while (!roleCreated && retryCount < maxRetries) {
-      const { error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .insert({
-          user_id: user.id,
-          role: 'agent'
-        });
-
-      if (!roleError) {
-        roleCreated = true;
-        console.log('User role created successfully');
-      } else {
-        console.error(`Role creation attempt ${retryCount + 1} failed:`, roleError);
-        retryCount++;
-        if (retryCount < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
-        }
-      }
-    }
-
-    if (!roleCreated) {
-      console.error('Failed to create user role after multiple attempts');
+    if (roleError) {
+      console.error('Role creation error:', roleError);
       // Clean up the created user and profile if role creation fails
-      await supabaseAdmin.auth.admin.deleteUser(user.id);
-      throw new Error('Failed to create user role after multiple attempts. Please try again.')
+      try {
+        await supabaseAdmin.auth.admin.deleteUser(user.id);
+      } catch (deleteError) {
+        console.error('Error deleting user during cleanup:', deleteError);
+      }
+      throw new Error(`Failed to create user role: ${roleError.message}. Please try again.`)
     }
 
     return new Response(
@@ -214,10 +235,23 @@ serve(async (req) => {
       },
     )
   } catch (error) {
+    console.error('Edge Function error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    
+    // Log full error for debugging (including all properties)
+    const errorObj = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      ...(error as any),
+    } : error;
+    console.error('Full error details:', JSON.stringify(errorObj, null, 2));
+    
+    // Return error with helpful message
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'An unknown error occurred',
-        details: error instanceof Error ? error.stack : undefined
+        error: errorMessage,
+        message: errorMessage, // Also include as 'message' for consistency
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,32 +1,60 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, X, ArrowLeft, Check } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { uploadToR2 } from '@/lib/upload';
+import { useObjectUrl } from '@/hooks/useObjectUrl';
+import { logger } from '@/lib/logger';
+
+interface PricingPlan {
+  id: string;
+  name: string;
+  price: number;
+  duration: string;
+  listingsPerMonth: number;
+  features: string[];
+}
+
+// Plan ID mapping for database
+const PLAN_ID_MAP: Record<string, string> = {
+  'basic-monthly': 'basic_monthly',
+  'pro-monthly': 'pro_monthly',
+  'pro-6month': 'pro_semi_annual',
+};
 
 const ReceiptUpload = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const plan = location.state?.plan as PricingPlan | undefined;
   const [receipt, setReceipt] = useState<File | null>(null);
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  
+  // Use hook to safely manage object URL
+  const receiptPreview = useObjectUrl(receipt);
+
+  // Redirect if no plan is provided
+  useEffect(() => {
+    if (!plan) {
+      navigate('/agent?tab=upgrade');
+    }
+  }, [plan, navigate]);
 
   const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setReceipt(file);
-      setReceiptPreview(URL.createObjectURL(file));
       setError(null);
     }
   };
 
   const removeReceipt = () => {
     setReceipt(null);
-    setReceiptPreview(null);
     setError(null);
   };
 
@@ -45,32 +73,28 @@ const ReceiptUpload = () => {
     setError(null);
 
     try {
-      // Upload receipt to storage
-      const fileName = `${user.id}/${Date.now()}-receipt-${receipt.name}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('receipts')
-        .upload(fileName, receipt);
+      // Upload receipt to R2
+      const receiptUrl = await uploadToR2(receipt, 'receipts');
 
-      if (uploadError) {
-        throw uploadError;
+      // Validate plan exists
+      if (!plan) {
+        throw new Error('Plan information is missing. Please select a plan first.');
       }
 
-      // Get public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('receipts')
-        .getPublicUrl(fileName);
+      // Map plan ID for database
+      const dbPlanId = PLAN_ID_MAP[plan.id] || plan.id;
 
       // Create subscription request
       const { error: requestError } = await supabase
         .from('subscription_requests')
         .insert({
           user_id: user.id,
-          receipt_path: publicUrlData.publicUrl,
+          receipt_path: receiptUrl,
           status: 'pending',
-          plan_id: 'basic_monthly', // Valid plan ID from database constraint
-          amount: 300, // Default amount, can be made dynamic
-          duration: '1 month',
-          listings_per_month: 20
+          plan_id: dbPlanId,
+          amount: plan.price,
+          duration: plan.duration,
+          listings_per_month: plan.listingsPerMonth
         });
 
       if (requestError) {
@@ -83,7 +107,7 @@ const ReceiptUpload = () => {
       }, 2000);
 
     } catch (error: any) {
-      console.error('Error uploading receipt:', error);
+      logger.error('Error uploading receipt:', error);
       setError(`Failed to upload receipt: ${error.message}`);
     } finally {
       setIsSubmitting(false);
@@ -127,12 +151,63 @@ const ReceiptUpload = () => {
           <div>
             <h1 className="text-2xl font-bold text-[var(--portal-text)]">Upload Payment Receipt</h1>
             <p className="text-[var(--portal-text-secondary)]">Upload your payment receipt to upgrade your account</p>
+            {plan && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-blue-900">
+                  Plan: {plan.name} - {plan.listingsPerMonth} listings/month - {plan.price.toLocaleString()} ETB
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Main Content */}
         <div className="bg-[var(--portal-card-bg)] rounded-lg shadow-lg border border-[var(--portal-border)] p-6">
           <div className="space-y-6">
+            {/* Bank Account Information */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-medium text-emerald-900">Bank Account Details</h3>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-white/70 p-3 border border-emerald-100">
+                  <p className="text-xs uppercase tracking-wide text-emerald-600 font-semibold">CBE</p>
+                  <p className="text-sm font-medium text-emerald-900">Commercial Bank of Ethiopia</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-base font-bold text-emerald-800">1000550968057</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-emerald-700 hover:text-emerald-900"
+                      onClick={() => navigator.clipboard.writeText('1000550968057')}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+                <div className="rounded-lg bg-white/70 p-3 border border-emerald-100">
+                  <p className="text-xs uppercase tracking-wide text-emerald-600 font-semibold">Telebirr</p>
+                  <p className="text-sm font-medium text-emerald-900">Account / Phone Number</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-base font-bold text-emerald-800">0900424494</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-emerald-700 hover:text-emerald-900"
+                      onClick={() => navigator.clipboard.writeText('0900424494')}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-emerald-700 mt-3">
+                Please transfer the subscription payment to one of the accounts above and upload the receipt for approval.
+              </p>
+            </div>
+
             {/* File Upload Section */}
             <div>
               <label className="block text-sm font-medium text-[var(--portal-label-text)] mb-2">

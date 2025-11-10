@@ -1,0 +1,3 @@
+[functions.upload-to-r2]
+verify_jwt = false
+

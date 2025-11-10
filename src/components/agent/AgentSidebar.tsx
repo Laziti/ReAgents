@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Home, Plus, User, List, LogOut, Menu, Building, LayoutDashboard, Crown, AlertCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -14,7 +14,7 @@ import Logo from '/LogoBG.svg';
 
 type AgentSidebarProps = {
   activeTab: string;
-  setActiveTab: (tab: string) => void;
+  setActiveTab?: (tab: string) => void;
 };
 
 type MenuItem = {
@@ -29,7 +29,35 @@ type MenuItem = {
 
 const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signOut, user } = useAuth();
+  
+  // Check if we're on the dashboard page (where tabs work) or standalone pages (where we need navigation)
+  const isDashboardPage = location.pathname === '/dashboard';
+  
+  // Determine active tab based on current route
+  const getActiveTabFromRoute = () => {
+    if (location.pathname === '/dashboard') {
+      return activeTab; // Use passed activeTab for dashboard
+    }
+    // For standalone pages, determine from route
+    if (location.pathname.includes('image-selection') || location.pathname.includes('listing-details')) {
+      return 'create';
+    }
+    if (location.pathname.includes('listings')) {
+      return 'listings';
+    }
+    if (location.pathname.includes('account')) {
+      return 'account';
+    }
+    if (location.pathname.includes('upgrade')) {
+      return 'upgrade';
+    }
+    return activeTab;
+  };
+  
+  const currentActiveTab = getActiveTabFromRoute();
+  
   const [profile, setProfile] = React.useState<any>(null);
   const [paymentDueSoon, setPaymentDueSoon] = React.useState<boolean>(false);
   const [daysRemaining, setDaysRemaining] = React.useState<number | null>(null);
@@ -96,48 +124,94 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
     fetchProfile();
   }, [user]);
 
-  const menuItems: MenuItem[] = [
-    { 
-      id: 'dashboard', 
-      label: 'Dashboard', 
-      icon: <LayoutDashboard className="h-5 w-5" />,
-      action: () => setActiveTab('dashboard')
-    },
-    { 
-      id: 'listings', 
-      label: 'My Listings', 
-      icon: <List className="h-5 w-5" />,
-      action: () => setActiveTab('listings')
-    },
-    { 
-      id: 'create', 
-      label: 'Create New', 
-      icon: <Plus className="h-5 w-5" />,
-      action: () => setActiveTab('create')
-    },
-    { 
-      id: 'account', 
-      label: 'Account Info', 
-      icon: <User className="h-5 w-5" />,
-      action: () => setActiveTab('account'),
-      notification: paymentDueSoon,
-      notificationContent: profile && profile.subscription_status === 'pro' && getTimeRemaining(profile) !== 'Expired'
-        ? `Payment due: ${getTimeRemaining(profile)}`
-        : profile?.subscription_status === 'pro' && getTimeRemaining(profile) === 'Expired'
-        ? 'Subscription Expired' : undefined
+  // Navigation handler - always navigate to routes
+  // Memoize to prevent unnecessary re-renders
+  const handleNavigation = useCallback((tabId: string) => {
+    switch (tabId) {
+      case 'dashboard':
+        navigate('/dashboard');
+        break;
+      case 'listings':
+        navigate('/agent/listings');
+        break;
+      case 'create':
+        navigate('/agent/image-selection');
+        break;
+      case 'account':
+        navigate('/agent/account');
+        break;
+      case 'upgrade':
+        navigate('/agent/upgrade');
+        break;
+      default:
+        navigate('/dashboard');
     }
-  ];
+  }, [navigate]);
 
-  // Only add upgrade menu item if user is not pro
-  if (!profile?.subscription_status || profile.subscription_status === 'free') {
-    menuItems.push({ 
-      id: 'upgrade', 
-      label: 'Upgrade to Pro', 
-      icon: <Crown className="h-5 w-5" />,
-      action: () => setActiveTab('upgrade'),
-      highlight: true
-    });
-  }
+  // Extract subscription status as a stable value to prevent unnecessary recalculations
+  // This ensures menu items only recalculate when subscription status actually changes
+  const subscriptionStatus = profile?.subscription_status || null;
+  const isProfileLoaded = profile !== null;
+  const timeRemaining = useMemo(() => {
+    return profile ? getTimeRemaining(profile) : null;
+  }, [profile?.subscription_details?.end_date, profile?.subscription_end_date]);
+
+  // Memoize menu items to prevent unnecessary re-renders and flickering
+  // Only recalculate when subscription status or payment due status changes
+  // Key fix: Use subscriptionStatus as a string dependency, not the entire profile object
+  const menuItems: MenuItem[] = useMemo(() => {
+    const items: MenuItem[] = [
+      { 
+        id: 'dashboard', 
+        label: 'Dashboard', 
+        icon: <LayoutDashboard className="h-5 w-5" />,
+        action: () => handleNavigation('dashboard')
+      },
+      { 
+        id: 'listings', 
+        label: 'My Listings', 
+        icon: <List className="h-5 w-5" />,
+        action: () => handleNavigation('listings')
+      },
+      { 
+        id: 'create', 
+        label: 'Create New', 
+        icon: <Plus className="h-5 w-5" />,
+        action: () => handleNavigation('create')
+      },
+      { 
+        id: 'account', 
+        label: 'Account Info', 
+        icon: <User className="h-5 w-5" />,
+        action: () => handleNavigation('account'),
+        notification: paymentDueSoon,
+        notificationContent: subscriptionStatus === 'pro' && timeRemaining && timeRemaining !== 'Expired'
+          ? `Payment due: ${timeRemaining}`
+          : subscriptionStatus === 'pro' && timeRemaining === 'Expired'
+          ? 'Subscription Expired' : undefined
+      }
+    ];
+
+    // Only add upgrade menu item if:
+    // 1. Profile is loaded (isProfileLoaded) - prevents showing upgrade while loading
+    // 2. User is NOT pro (subscriptionStatus !== 'pro') - pro users never see upgrade button
+    // This prevents the upgrade button from flickering when clicking menu items
+    // For pro users: subscriptionStatus === 'pro', so upgrade will NEVER be added
+    // For free users: subscriptionStatus will be null, undefined, or 'free', so upgrade will be added
+    const shouldShowUpgrade = isProfileLoaded && subscriptionStatus !== 'pro';
+    
+    if (shouldShowUpgrade) {
+      items.push({ 
+        id: 'upgrade', 
+        label: 'Upgrade to Pro', 
+        icon: <Crown className="h-5 w-5" />,
+        action: () => handleNavigation('upgrade'),
+        highlight: true
+      });
+    }
+
+    return items;
+  }, [subscriptionStatus, isProfileLoaded, paymentDueSoon, timeRemaining, handleNavigation]);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full portal-sidebar">
@@ -188,7 +262,7 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
             >
               <div
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 ${
-                  activeTab === item.id 
+                  currentActiveTab === item.id 
                     ? 'bg-[var(--portal-accent)]/20 text-[var(--portal-accent)] font-medium' 
                     : item.highlight
                     ? 'text-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/10'
@@ -197,7 +271,7 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
                 onClick={item.action}
               >
                 <div className={`p-1.5 rounded-md ${
-                  activeTab === item.id 
+                  currentActiveTab === item.id 
                     ? 'bg-[var(--portal-accent)] text-white' 
                     : item.highlight
                     ? 'bg-[var(--portal-accent)]/20'
@@ -244,16 +318,20 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
   );
 
   // Mobile bottom navigation - improved for better usability
-  const mobileMenuItems = menuItems.map(item => ({
-    ...item,
-    label:
-      item.id === 'dashboard' ? 'Home' :
-      item.id === 'listings' ? 'Listings' :
-      item.id === 'create' ? 'Add' :
-      item.id === 'account' ? 'Account' :
-      item.id === 'upgrade' ? 'Pro' :
-      item.label
-  }));
+  // Memoize mobile menu items to prevent flickering
+  const mobileMenuItems = useMemo(() => {
+    return menuItems.map(item => ({
+      ...item,
+      label:
+        item.id === 'dashboard' ? 'Home' :
+        item.id === 'listings' ? 'Listings' :
+        item.id === 'create' ? 'Add' :
+        item.id === 'account' ? 'Account' :
+        item.id === 'upgrade' ? 'Pro' :
+        item.label
+    }));
+  }, [menuItems]);
+
   const MobileNav = () => (
     <div className="fixed bottom-0 left-0 right-0 bg-[var(--portal-sidebar-bg)] border-t border-[var(--portal-border)] py-2 px-4 md:hidden z-50">
       <div className="flex justify-around items-center">
@@ -261,11 +339,11 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
           <button
             key={item.id}
             className={`flex flex-col items-center p-2 rounded-lg transition-all ${
-              activeTab === item.id ? 'text-[var(--portal-accent)]' : 'text-[var(--portal-text-secondary)]'
+              currentActiveTab === item.id ? 'text-[var(--portal-accent)]' : 'text-[var(--portal-text-secondary)]'
             }`}
             onClick={item.action}
           >
-            <div className={`p-1.5 rounded-lg ${activeTab === item.id ? 'bg-[var(--portal-accent)]/20' : ''} relative`}>
+            <div className={`p-1.5 rounded-lg ${currentActiveTab === item.id ? 'bg-[var(--portal-accent)]/20' : ''} relative`}>
               {item.icon}
               {item.notification && (
                 <span className="absolute -top-1 -right-1 h-3 w-3 bg-amber-500 rounded-full border-2 border-[var(--portal-sidebar-bg)]"></span>
@@ -274,13 +352,6 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
             <span className="text-xs mt-1 font-medium">{item.label}</span>
           </button>
         ))}
-        <button
-          onClick={signOut}
-          className="flex flex-col items-center p-2 rounded-lg transition-all text-white bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] active:bg-[var(--portal-accent)]"
-        >
-          <LogOut className="h-5 w-5" />
-          <span className="text-xs mt-1 font-medium">Logout</span>
-        </button>
       </div>
     </div>
   );

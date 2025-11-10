@@ -116,37 +116,47 @@ const AgentProfileHeader = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden mt-4 md:mt-8"
+      className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8"
     >
-      {/* Professional Header with Gradient */}
-      <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 md:px-8 py-6 md:py-8">
-        {/* Subtle Pattern Overlay */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `radial-gradient(circle at 25% 25%, white 2px, transparent 0),
-                             radial-gradient(circle at 75% 75%, white 2px, transparent 0)`,
-            backgroundSize: '50px 50px'
-          }}></div>
+      {/* Professional Header Card - Design System Based */}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative" style={{ boxShadow: '0 20px 25px -5px rgba(220, 38, 38, 0.1), 0 10px 10px -5px rgba(220, 38, 38, 0.04)' }}>
+        {/* Cover Section - Overlays Top Portion */}
+        <div className="w-full h-32 sm:h-40 md:h-48 relative overflow-hidden">
+          <img 
+            src="/Cover-page.png"
+            alt="Agent Profile Cover" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/20"></div>
         </div>
         
-        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
-          {/* Profile Picture */}
-          <div className="flex-shrink-0">
+        {/* Header Section - Profile Content Overlapping Cover */}
+        <div className="px-6 sm:px-8 lg:px-12 py-8 sm:py-10 lg:py-12 -mt-16 sm:-mt-20 md:-mt-20 lg:-mt-24 relative z-10">
+          {/* Profile Section - Mobile First, Desktop Grid */}
+          <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 sm:gap-8 lg:gap-8 xl:gap-12">
+            {/* Profile Picture - Golden Ratio Size (96px mobile, 120px desktop) */}
+            <div className="flex-shrink-0 relative z-20 lg:mt-16">
             <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
               <DialogTrigger asChild>
-                <div className="cursor-pointer group">
+                  <div className="cursor-pointer group relative">
                   {avatarUrl ? (
                     <div className="relative">
                       <img 
                         src={avatarUrl} 
                         alt={`${firstName} ${lastName}`} 
-                        className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white/20 shadow-2xl group-hover:scale-105 transition-transform duration-300"
+                          className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 rounded-full object-cover border-4 border-gray-100 shadow-lg transition-transform duration-300 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 rounded-full border-2 border-white/30 group-hover:border-white/50 transition-colors duration-300"></div>
+                        {/* Verified Badge - Positioned at golden ratio point */}
+                        <div className="absolute -bottom-1 -right-1 bg-blue-600 rounded-full p-1.5 sm:p-2 shadow-lg border-4 border-white">
+                          <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                        </div>
                     </div>
                   ) : (
-                    <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white/20 shadow-2xl flex items-center justify-center bg-gradient-to-br from-slate-600 to-slate-700 text-white text-2xl md:text-3xl font-bold group-hover:scale-105 transition-transform duration-300">
+                      <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 rounded-full border-4 border-gray-100 shadow-lg flex items-center justify-center bg-blue-600 text-white text-2xl sm:text-3xl font-bold transition-transform duration-300 group-hover:scale-105">
                       {firstName.charAt(0)}{lastName.charAt(0)}
+                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1.5 sm:p-2 shadow-lg border-4 border-blue-600">
+                          <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                        </div>
                     </div>
                   )}
                 </div>
@@ -156,7 +166,7 @@ const AgentProfileHeader = ({
                   <Button
                     variant="outline"
                     size="icon"
-                    className="absolute top-4 right-4 z-50 bg-white/90 hover:bg-white"
+                      className="absolute top-4 right-4 z-50 bg-white hover:bg-gray-50"
                     onClick={() => setIsImageModalOpen(false)}
                   >
                     <X className="h-4 w-4" />
@@ -168,7 +178,7 @@ const AgentProfileHeader = ({
                       className="w-full h-full max-h-[80vh] object-contain rounded-lg" 
                 />
               ) : (
-                    <div className="w-full h-96 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-red-500 text-6xl font-bold rounded-lg">
+                      <div className="w-full h-96 flex items-center justify-center bg-gray-100 text-blue-600 text-6xl font-bold rounded-lg">
                   {firstName.charAt(0)}{lastName.charAt(0)}
                 </div>
               )}
@@ -177,91 +187,139 @@ const AgentProfileHeader = ({
             </Dialog>
           </div>
 
-          {/* Profile Information */}
-          <div className="flex-1 text-center md:text-left text-white">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
-              <h1 className="text-2xl md:text-3xl font-bold mb-2 tracking-tight">
+            {/* Profile Information - Overlapping Cover on Desktop */}
+            <div className="flex-1 w-full text-center lg:text-left relative z-20 lg:mt-16">
+              <div className="space-y-4 sm:space-y-5">
+                {/* Name & Badge - Overlapping Cover on Desktop */}
+                <div className="space-y-3">
+                  <div className="flex flex-col lg:flex-row items-center lg:items-start gap-3 sm:gap-4">
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight leading-tight">
                       {firstName} {lastName}
                     </h1>
+                    <Badge className="bg-blue-600 text-white border-none px-3 py-1.5 text-xs sm:text-sm font-semibold shadow-md">
+                      Verified Agent
+                    </Badge>
+                  </div>
               
                     {career && (
-                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                  <Briefcase className="h-4 w-4 text-blue-300" />
-                  <p className="text-base text-blue-100 font-medium">
+                    <div className="flex items-center justify-center lg:justify-start gap-2.5">
+                      <Briefcase className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                      <p className="text-base sm:text-lg lg:text-xl text-slate-700 font-semibold">
                     {career}
                   </p>
                       </div>
                     )}
+                </div>
 
                     {location && (
-                <div className="flex items-center justify-center md:justify-start gap-2 mb-3">
-                  <MapPin className="h-4 w-4 text-green-300" />
-                  <p className="text-sm text-green-100">
+                  <div className="flex items-center justify-center lg:justify-start gap-2.5">
+                    <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600 flex-shrink-0" />
+                    <p className="text-sm sm:text-base text-slate-600 font-medium">
                     {location}
                   </p>
                 </div>
               )}
 
-              {description && (
-                <p className="text-gray-200 text-sm md:text-base leading-relaxed max-w-2xl mx-auto md:mx-0">
+                {/* Description - Below Cover (White Section) */}
+                <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl mx-auto lg:mx-0 lg:mt-8">
                     {agentDescription}
                 </p>
-              )}
-            </motion.div>
+              </div>
+            </div>
+          </div>
           </div>
                   
-          {/* Contact Actions */}
-          <div className="flex flex-col sm:flex-row gap-3">
-                    {phoneNumber && (
+        {/* Contact Section - All Buttons in One Row */}
+        <div className="px-6 sm:px-8 lg:px-12 py-6 sm:py-8 border-t border-gray-100 bg-gray-50">
+          <div className="space-y-3 sm:space-y-4">
+            {/* All Contact Buttons in One Row - Mobile & Desktop */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {/* Call Button */}
+              {phoneNumber ? (
               <Button 
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+                  className="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white py-4 sm:py-5 rounded-xl font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center justify-center gap-1.5 min-h-[52px] sm:min-h-[56px]"
                 onClick={() => window.open(`tel:${phoneNumber}`)}
               >
-                <Phone className="h-5 w-5" />
-                Call Now
+                  <Phone className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-[10px] sm:text-xs">Call</span>
+                </Button>
+              ) : (
+                <div className="w-full py-4 sm:py-5 rounded-xl bg-gray-200 flex flex-col items-center justify-center gap-1.5 min-h-[52px] sm:min-h-[56px]">
+                  <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                  <span className="text-[10px] sm:text-xs text-gray-500 font-medium">No Call</span>
+                </div>
+              )}
+              
+              {/* WhatsApp Button */}
+              {whatsappLink ? (
+                <Button
+                  className="w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white py-4 sm:py-5 rounded-xl font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center justify-center gap-1.5 min-h-[52px] sm:min-h-[56px]"
+                  onClick={() => window.open(whatsappLink, '_blank')}
+                >
+                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-[10px] sm:text-xs">WhatsApp</span>
                       </Button>
-                    )}
+              ) : (
+                <div className="w-full py-4 sm:py-5 rounded-xl bg-gray-200 flex flex-col items-center justify-center gap-1.5 min-h-[52px] sm:min-h-[56px]">
+                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                  <span className="text-[10px] sm:text-xs text-gray-500 font-medium">No WA</span>
+                </div>
+              )}
+              
+              {/* Telegram Button */}
+              {telegramLink ? (
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white py-4 sm:py-5 rounded-xl font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center justify-center gap-1.5 min-h-[52px] sm:min-h-[56px]"
+                  onClick={() => window.open(telegramLink, '_blank')}
+                >
+                  <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="text-[10px] sm:text-xs">Telegram</span>
+                </Button>
+              ) : (
+                <div className="w-full py-4 sm:py-5 rounded-xl bg-gray-200 flex flex-col items-center justify-center gap-1.5 min-h-[52px] sm:min-h-[56px]">
+                  <Send className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                  <span className="text-[10px] sm:text-xs text-gray-500 font-medium">No TG</span>
+                </div>
+              )}
+            </div>
             
+            {/* Share Button - Secondary Action */}
                   <Popover>
                     <PopoverTrigger asChild>
                 <Button 
                   variant="outline" 
-                  className="bg-white/10 hover:bg-white/20 text-white border-white/30 hover:border-white/50 px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+                  className="w-full bg-white hover:bg-gray-50 active:bg-gray-100 text-slate-700 border-2 border-gray-200 hover:border-gray-300 py-4 sm:py-5 rounded-xl font-semibold text-sm sm:text-base shadow-sm hover:shadow-md transition-all duration-200 flex items-center justify-center gap-2.5 min-h-[52px] sm:min-h-[56px]"
                 >
-                  <Share2 className="h-5 w-5" />
-                  Share
+                  <Share2 className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <span>Share Profile</span>
                       </Button>
                     </PopoverTrigger>
-              <PopoverContent className="w-56 p-2 bg-white border border-gray-200 shadow-xl rounded-lg">
+              <PopoverContent className="w-64 p-3 bg-white border-2 border-gray-200 shadow-xl rounded-xl" align="center">
                       <div className="grid gap-2">
                         <Button
                           variant="ghost"
-                    className="justify-start text-gray-700 hover:bg-gray-100 rounded-lg"
+                    className="justify-start text-slate-700 hover:bg-gray-100 active:bg-gray-200 rounded-lg py-3 px-4 h-auto"
                           onClick={copyToClipboard}
                         >
-                    <Copy className="h-4 w-4 mr-2" />
-                    {copied ? 'Copied!' : 'Copy Link'}
-                    {copied && <Check className="h-4 w-4 ml-auto text-green-500" />}
+                    <Copy className="h-4 w-4 mr-3 flex-shrink-0" />
+                    <span className="flex-1 text-left">{copied ? 'Copied!' : 'Copy Link'}</span>
+                    {copied && <Check className="h-4 w-4 ml-2 text-green-600 flex-shrink-0" />}
                         </Button>
                         <Button
                           variant="ghost"
-                    className="justify-start text-gray-700 hover:bg-gray-100 rounded-lg"
+                    className="justify-start text-slate-700 hover:bg-green-50 active:bg-green-100 rounded-lg py-3 px-4 h-auto"
                           onClick={shareToWhatsApp}
                         >
-                    <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
-                    WhatsApp
+                    <MessageCircle className="h-4 w-4 mr-3 text-green-600 flex-shrink-0" />
+                    <span className="flex-1 text-left">Share on WhatsApp</span>
                         </Button>
                         <Button
                           variant="ghost"
-                    className="justify-start text-gray-700 hover:bg-gray-100 rounded-lg"
+                    className="justify-start text-slate-700 hover:bg-blue-50 active:bg-blue-100 rounded-lg py-3 px-4 h-auto"
                           onClick={shareToTelegram}
                         >
-                    <Send className="h-4 w-4 mr-2 text-blue-500" />
-                    Telegram
+                    <Send className="h-4 w-4 mr-3 text-blue-600 flex-shrink-0" />
+                    <span className="flex-1 text-left">Share on Telegram</span>
                         </Button>
                       </div>
                     </PopoverContent>

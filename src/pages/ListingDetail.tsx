@@ -10,6 +10,7 @@ import { createListingSlug } from '@/components/public/ListingCard';
 import { Listing, Agent } from '@/types';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { logger } from '@/lib/logger';
 
 const ListingDetail = () => {
   const { agentSlug, listingSlug } = useParams();
@@ -26,23 +27,24 @@ const ListingDetail = () => {
       try {
         setLoading(true);
         setError(null);
-        console.log(`Fetching listing details for agentSlug: ${agentSlug}, listingSlug: ${listingSlug}`);
+        logger.log(`Fetching listing details for agentSlug: ${agentSlug}, listingSlug: ${listingSlug}`);
 
         // Get listings for this agent, including user_id
         const { data: listings, error: listingsError } = await supabase
           .from('listings')
           .select(`*`)
-          .neq('status', 'hidden'); // Only fetch active listings
+          .neq('status', 'hidden')
+          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`); // Only fetch active, non-expired listings
 
         if (listingsError) {
-          console.error('Supabase error fetching listings:', listingsError);
+          logger.error('Supabase error fetching listings:', listingsError);
           throw new Error('Error fetching listings');
         }
         if (!listings || listings.length === 0) {
-          console.warn('No listings found.', { listings });
+          logger.warn('No listings found.', { listings });
           throw new Error('No listings found');
         }
-        console.log(`Successfully fetched ${listings.length} total listings.`);
+        logger.log(`Successfully fetched ${listings.length} total listings.`);
         // console.log('Fetched listings data (all):', listings); // Too verbose to log all listings
 
         // Find the agent by slug first
@@ -54,41 +56,41 @@ const ListingDetail = () => {
           .maybeSingle();
         
         if (agentError) {
-          console.error('Supabase error fetching agent by slug:', agentError);
+          logger.error('Supabase error fetching agent by slug:', agentError);
           throw new Error('Error fetching agent profile');
         }
         if (!agentData) {
-          console.warn(`Agent with slug ${agentSlug} not found or not approved.`);
+          logger.warn(`Agent with slug ${agentSlug} not found or not approved.`);
           throw new Error('Agent not found');
         }
-        console.log('Agent found:', agentData);
+        logger.log('Agent found:', agentData);
 
         // Filter listings by the found agent's ID
         const agentListings = listings.filter(l => l.user_id === agentData.id);
         if (agentListings.length === 0) {
-          console.warn(`No listings found for agent ID ${agentData.id}.`);
+          logger.warn(`No listings found for agent ID ${agentData.id}.`);
           throw new Error('No listings found for this agent');
         }
-        console.log(`Found ${agentListings.length} listings for agent ${agentData.id}.`);
+        logger.log(`Found ${agentListings.length} listings for agent ${agentData.id}.`);
 
         // Find the listing with matching slug from the agent's listings
         const matchingListing = agentListings.find(
           listing => {
             const generatedSlug = createListingSlug(listing.title);
-            console.log(`Comparing fetched listing title: "${listing.title}" (generated slug: "${generatedSlug}") with URL slug: "${listingSlug}"`);
+            logger.log(`Comparing fetched listing title: "${listing.title}" (generated slug: "${generatedSlug}") with URL slug: "${listingSlug}"`);
             return generatedSlug === listingSlug;
           }
         );
 
         if (!matchingListing) {
-          console.warn(`No matching listing found for listingSlug: ${listingSlug} among agent's listings.`);
+          logger.warn(`No matching listing found for listingSlug: ${listingSlug} among agent's listings.`);
           throw new Error('Listing not found');
         }
 
         setListing(matchingListing);
         setAgent(agentData);
-        console.log('Setting listing:', matchingListing);
-        console.log('Setting agent:', agentData);
+        logger.log('Setting listing:', matchingListing);
+        logger.log('Setting agent:', agentData);
 
         // Handle agent slug verification and redirects (should be handled by initial agent fetch now)
         // if (agentData.slug && agentData.slug !== agentSlug) {
@@ -99,14 +101,14 @@ const ListingDetail = () => {
 
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
-        console.error('Caught error in fetchListing:', err);
+        logger.error('Caught error in fetchListing:', err);
         setError(errorMessage);
         // Only navigate if an agentSlug exists to avoid infinite redirects on root
         if (agentSlug) {
-          console.log(`Navigating back to agent profile due to error: ${errorMessage}`);
+          logger.log(`Navigating back to agent profile due to error: ${errorMessage}`);
           navigate(`/${agentSlug}`, { replace: true });
         } else {
-          console.log('Navigating to /not-found due to error and no agentSlug.');
+          logger.log('Navigating to /not-found due to error and no agentSlug.');
           navigate('/not-found', { replace: true });
         }
       } finally {
@@ -117,12 +119,41 @@ const ListingDetail = () => {
     if (agentSlug && listingSlug) {
       fetchListing();
     } else {
-      console.warn('Missing agentSlug or listingSlug. Skipping fetchListing.', { agentSlug, listingSlug });
+      logger.warn('Missing agentSlug or listingSlug. Skipping fetchListing.', { agentSlug, listingSlug });
       setLoading(false);
       setError('Invalid URL for listing details.');
       navigate('/not-found', { replace: true });
     }
   }, [agentSlug, listingSlug, navigate]);
+
+  // Track views when listing is loaded
+  useEffect(() => {
+    const trackView = async () => {
+      if (!listing?.id) return;
+      
+      try {
+        // Increment view count (using RPC or direct update)
+        const { error } = await supabase.rpc('increment_listing_views', { listing_id: listing.id });
+        if (error) {
+          // Fallback to direct update if RPC doesn't exist
+          const { error: updateError } = await supabase
+            .from('listings')
+            .update({ views: (listing.views || 0) + 1 })
+            .eq('id', listing.id);
+          if (updateError) {
+            logger.error('Error tracking view:', updateError);
+          }
+        }
+      } catch (error) {
+        logger.error('Error tracking view:', error);
+      }
+    };
+
+    // Only track view once per page load
+    if (listing && !loading) {
+      trackView();
+    }
+  }, [listing?.id, loading]);
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -133,7 +164,7 @@ const ListingDetail = () => {
           setCopied(true);
         })
         .catch(err => {
-          console.error('Failed to copy: ', err);
+          logger.error('Failed to copy: ', err);
         });
     } else {
       // Fallback for browsers that don't support clipboard API
@@ -146,7 +177,7 @@ const ListingDetail = () => {
         document.execCommand('copy');
         setCopied(true);
       } catch (err) {
-        console.error('Failed to copy: ', err);
+        logger.error('Failed to copy: ', err);
       }
       
       document.body.removeChild(textarea);
@@ -283,7 +314,7 @@ const ListingDetail = () => {
       </Helmet>
       
       {/* MAIN CONTENT GRID (no hero/cover, no heading, no details card) */}
-      <main className="container mx-auto px-4 md:px-10 py-12 relative z-10 max-w-7xl">
+      <main className="container mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-6 sm:py-8 md:py-12 relative z-10 max-w-7xl">
           {/* Back Button */}
           <motion.button
             initial={{ opacity: 0, x: -20 }}
@@ -295,27 +326,29 @@ const ListingDetail = () => {
             <ArrowLeft className="h-5 w-5 mr-1 group-hover:-translate-x-1 transition-transform" />
             Back to Listings
           </motion.button>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-12 items-start">
           {/* Left: Gallery and Description */}
-            <div className="lg:col-span-2 flex flex-col gap-8">
+            <div className="lg:col-span-2 flex flex-col gap-6 sm:gap-8">
             {/* Gallery */}
               <ModernGallery images={[
                 listing.main_image_url,
                 ...(Array.isArray(listing.additional_image_urls) ? listing.additional_image_urls : [])
               ].filter(Boolean)} />
             {/* Description */}
-            <Card className="bg-white/80 border-gray-200 rounded-2xl shadow-xl backdrop-blur-md mt-4">
-                <CardHeader>
-                <CardTitle className="text-2xl font-bold text-red-500 flex items-center gap-2">
-                    <FileText className="h-6 w-6 mr-2" />
+            <Card className="bg-white/80 border-gray-200 rounded-xl sm:rounded-2xl shadow-xl backdrop-blur-md mt-4 w-full">
+                <CardHeader className="px-4 sm:px-6 pt-4 sm:pt-6">
+                <CardTitle className="text-xl sm:text-2xl font-bold text-red-500 flex items-center gap-2">
+                    <FileText className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
                     Description
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="prose prose-gold dark:prose-invert max-w-none text-lg break-words whitespace-pre-line">
+                <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
                   {listing.description ? (
-                    <p className="whitespace-pre-line leading-relaxed text-[var(--portal-text-secondary)]">{listing.description}</p>
+                    <p className="text-sm sm:text-base md:text-lg leading-relaxed text-[var(--portal-text-secondary)] whitespace-pre-line break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                      {listing.description}
+                    </p>
                   ) : (
-                    <p className="text-[var(--portal-text-secondary)] italic">No description provided for this listing.</p>
+                    <p className="text-sm sm:text-base text-[var(--portal-text-secondary)] italic">No description provided for this listing.</p>
                   )}
                 </CardContent>
               </Card>

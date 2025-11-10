@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, User, CheckCircle } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 const Dashboard: React.FC = () => {
   const { user, userStatus, loading } = useAuth();
@@ -24,7 +25,7 @@ const Dashboard: React.FC = () => {
           .maybeSingle();
 
         if (error) {
-          console.error('Error fetching profile:', error);
+          logger.error('Error fetching profile:', error);
           setProfile(null);
         } else if (data) {
           setProfile(data);
@@ -33,7 +34,7 @@ const Dashboard: React.FC = () => {
           setProfile(null);
         }
       } catch (error) {
-        console.error('Error in fetchProfile:', error);
+        logger.error('Error in fetchProfile:', error);
         setProfile(null);
       } finally {
         setProfileLoading(false);
@@ -58,7 +59,7 @@ const Dashboard: React.FC = () => {
             setProfile(data);
           }
         } catch (error) {
-          console.error('Error refreshing profile:', error);
+          logger.error('Error refreshing profile:', error);
         }
       };
 

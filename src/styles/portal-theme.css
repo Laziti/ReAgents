@@ -391,3 +391,13 @@ button.submit-button:hover, button.primary-button:hover, button[type="submit"]:h
 .shadow {
   box-shadow: none !important;
 }
+
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}

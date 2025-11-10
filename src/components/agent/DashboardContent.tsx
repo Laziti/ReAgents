@@ -10,6 +10,7 @@ import {
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '@/lib/logger';
 
 const DashboardContent = ({ listings, profile }) => {
   const { user } = useAuth();
@@ -42,7 +43,7 @@ const DashboardContent = ({ listings, profile }) => {
         setListingsByMonth(monthly);
         setLoading(false);
       } catch (error) {
-        console.error('Error calculating stats:', error);
+        logger.error('Error calculating stats:', error);
         setLoading(false);
       }
     };

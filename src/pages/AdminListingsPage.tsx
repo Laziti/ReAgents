@@ -24,6 +24,9 @@ import { Eye, Search, Filter, X, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ListingDetailsModal from '@/components/admin/ListingDetailsModal';
 import { formatCurrency } from '@/lib/formatters';
+import { logger } from '@/lib/logger';
+import { paginateQuery, getPaginationRange } from '@/lib/pagination';
+import { fetchListingsWithUsers } from '@/lib/query-optimization';
 
 interface Listing {
   id: string;
@@ -63,37 +66,35 @@ const AdminListingsPage = () => {
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
   useEffect(() => {
     fetchListings();
-  }, []);
+  }, [page, filters.status]);
 
   useEffect(() => {
     applyFilters();
-  }, [searchTerm, filters, listings]);
+  }, [searchTerm, filters, listings, page]);
 
   const fetchListings = async () => {
     setLoading(true);
     try {
-      // Fetch all listings
-      const { data, error } = await supabase
-        .from('listings')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Use optimized query with batch user fetching
+      const { listings: listingsData, users: usersMap } = await fetchListingsWithUsers(
+        supabase,
+        {
+          status: filters.status === 'all' ? undefined : filters.status,
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+        }
+      );
       
-      if (error) throw error;
-
-      setListings(data || []);
-      
-      // Extract unique user ids
-      const userIds = [...new Set((data || []).map(listing => listing.user_id).filter(Boolean))];
-      
-      if (userIds.length > 0) {
-        await fetchUserInfo(userIds as string[]);
-      }
+      setListings(listingsData);
+      setUsers(usersMap);
       
     } catch (error: any) {
-      console.error('Error loading listings:', error.message);
+      logger.error('Error loading listings:', error.message);
     } finally {
       setLoading(false);
     }
@@ -131,7 +132,7 @@ const AdminListingsPage = () => {
       
       setUsers(usersMap);
     } catch (error) {
-      console.error('Error fetching user info:', error);
+      logger.error('Error fetching user info:', error);
     }
   };
 
@@ -214,7 +215,7 @@ const AdminListingsPage = () => {
                 <Input
                   placeholder="Search listings"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => setSearchTerm(sanitizeInput(e.target.value))}
                   className="pl-10 bg-white"
                 />
               </div>

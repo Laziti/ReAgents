@@ -1,18 +1,5 @@
-import React from 'react'; // Removed useState, useEffect
-// import { useNavigate, Link } from 'react-router-dom'; // Link not used, useNavigate might be needed later for redirection after AuthHero's own logic
-// import { useAuth } from '@/contexts/AuthContext'; // Might be needed later for wiring up AuthHero
-// import { Button } from '@/components/ui/button'; // Button from ui is not directly used by Auth page now
-// import { z } from 'zod'; // Related to old form
-// import { useForm } from 'react-hook-form'; // Related to old form
-// import { zodResolver } from '@hookform/resolvers/zod'; // Related to old form
-// import { Check as CheckIcon, Building as BuildingIcon, ArrowLeft, Mail, Lock, User, Phone } from 'lucide-react'; // Icons for old form
-// import { motion } from 'framer-motion'; // Framer motion for old form animations
-// import { supabase } from '@/integrations/supabase/client'; // Supabase client for old form logic
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Select for old form
-
+import React from 'react';
 import AuthHero from '@/components/public/AuthHero';
-
-// const REAL_ESTATE_COMPANIES = [ // Related to old form
 //   "Noah Real Estate",
 //   "Gift Real Estate",
 //   "Flintstone Homes",

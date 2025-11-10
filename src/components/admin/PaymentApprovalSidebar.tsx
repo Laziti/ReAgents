@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, XCircle, ExternalLink, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, ExternalLink, AlertCircle, X, ZoomIn } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -9,11 +9,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { logger } from '@/lib/logger';
+import { getPaginationRange } from '@/lib/pagination';
 
 // Database response types
 interface Profile {
@@ -46,16 +55,33 @@ interface PaymentRequest {
   created_at: string;
   amount: number;
   plan_type: string;
+  plan_id?: string;
+  listings_per_month?: number;
+  duration?: string;
   user_profile?: Profile;
 }
+
+// Plan ID to name mapping
+const PLAN_NAMES: Record<string, string> = {
+  'basic-monthly': 'Basic Monthly',
+  'monthly-basic': 'Basic Monthly',
+  'pro-monthly': 'Pro Monthly',
+  'monthly-premium': 'Pro Monthly',
+  'pro-6month': 'Pro 6-Month',
+  'semi-annual': 'Pro 6-Month',
+};
 
 const PaymentApprovalSidebar = () => {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [expandedReceipt, setExpandedReceipt] = useState<string | null>(null);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
   const [objectUrls, setObjectUrls] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
   const { refreshSession } = useAuth();
 
   useEffect(() => {
@@ -75,7 +101,7 @@ const PaymentApprovalSidebar = () => {
 
       return data.publicUrl;
     } catch (error) {
-      console.error('Error getting receipt URL:', error);
+      logger.error('Error getting receipt URL:', error);
       return null;
     }
   };
@@ -86,7 +112,7 @@ const PaymentApprovalSidebar = () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
-        console.error('Error getting user:', userError);
+        logger.error('Error getting user:', userError);
         return;
       }
 
@@ -98,14 +124,14 @@ const PaymentApprovalSidebar = () => {
         .single();
 
       if (roleError) {
-        console.error('Error fetching user role:', roleError);
+        logger.error('Error fetching user role:', roleError);
         return;
       }
 
-      console.log('User role from database:', roleData?.role);
+      logger.log('User role from database:', roleData?.role);
 
       if (!roleData?.role || roleData.role !== 'super_admin') {
-        console.error('User does not have admin privileges. Current role:', roleData?.role);
+        logger.error('User does not have admin privileges. Current role:', roleData?.role);
         return;
       }
       
@@ -116,14 +142,14 @@ const PaymentApprovalSidebar = () => {
         .order('created_at', { ascending: false });
 
       if (requestsError) {
-        console.error('Error fetching requests:', requestsError);
+        logger.error('Error fetching requests:', requestsError);
         throw requestsError;
       }
 
-      console.log('Raw subscription requests:', requestsData);
+      logger.log('Raw subscription requests:', requestsData);
 
       if (!requestsData || requestsData.length === 0) {
-        console.log('No subscription requests found in database');
+        logger.log('No subscription requests found in database');
         setRequests([]);
         setLoading(false);
         return;
@@ -139,7 +165,7 @@ const PaymentApprovalSidebar = () => {
         .in('id', userIds);
 
       if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
+        logger.error('Error fetching profiles:', profilesError);
         throw profilesError;
       }
 
@@ -149,41 +175,30 @@ const PaymentApprovalSidebar = () => {
       // Transform the requests with receipt URLs and profile data
       const transformedRequests = await Promise.all(requestsData.map(async (request: SubscriptionRequest) => {
         try {
-          console.log('Processing request:', request);
-          console.log('Receipt path:', request.receipt_path);
+          logger.log('Processing request:', request);
+          logger.log('Receipt path:', request.receipt_path);
           
-          // First check if we can download the receipt
-          const { data: receiptData, error: receiptError } = await supabase
-            .storage
-            .from('receipts')
-            .download(request.receipt_path);
-
-          if (receiptError) {
-            console.error('Error downloading receipt:', receiptError);
-            // If download fails, try getting public URL directly
+          // Check if receipt_path is a full R2 URL or a Supabase storage path
+          let receiptUrl: string;
+          
+          if (request.receipt_path.startsWith('https://')) {
+            // It's a full R2 URL, use it directly
+            receiptUrl = request.receipt_path;
+            logger.log('Using R2 receipt URL:', receiptUrl);
+          } else {
+            // It's a Supabase storage path, get public URL
             const { data: urlData } = await supabase
               .storage
               .from('receipts')
               .getPublicUrl(request.receipt_path);
 
-            console.log('Receipt public URL:', urlData.publicUrl);
-            
-            return {
-              id: request.id,
-              user_id: request.user_id,
-              receipt_url: urlData.publicUrl,
-              status: request.status,
-              created_at: request.created_at,
-              amount: request.amount,
-              plan_type: `${request.listings_per_month} listings/${request.duration}`,
-              user_profile: profilesMap.get(request.user_id)
-            };
+            receiptUrl = urlData.publicUrl;
+              logger.log('Using Supabase receipt URL:', receiptUrl);
           }
 
-          // If download succeeds, create object URL
-          const receiptUrl = URL.createObjectURL(receiptData);
-          setObjectUrls(prev => [...prev, receiptUrl]);
-          console.log('Created receipt URL:', receiptUrl);
+          // Get plan name from plan_id or create descriptive name
+          const planName = PLAN_NAMES[request.plan_id] || 
+            `${request.listings_per_month} listings/${request.duration}`;
 
           return {
             id: request.id,
@@ -192,11 +207,14 @@ const PaymentApprovalSidebar = () => {
             status: request.status,
             created_at: request.created_at,
             amount: request.amount,
-            plan_type: `${request.listings_per_month} listings/${request.duration}`,
+            plan_type: planName,
+            plan_id: request.plan_id,
+            listings_per_month: request.listings_per_month,
+            duration: request.duration,
             user_profile: profilesMap.get(request.user_id)
           };
         } catch (error) {
-          console.error('Error processing request:', request.id, error);
+          logger.error('Error processing request:', request.id, error);
           return null;
         }
       }));
@@ -204,10 +222,10 @@ const PaymentApprovalSidebar = () => {
       // Filter out any null values from failed transformations
       const validRequests = transformedRequests.filter(r => r !== null) as PaymentRequest[];
       
-      console.log('Final transformed requests:', validRequests);
+      logger.log('Final transformed requests:', validRequests);
       setRequests(validRequests);
     } catch (error) {
-      console.error('Error in fetchPaymentRequests:', error);
+      logger.error('Error in fetchPaymentRequests:', error);
     } finally {
       setLoading(false);
     }
@@ -217,16 +235,16 @@ const PaymentApprovalSidebar = () => {
     setProcessing(requestId);
     try {
       // First get the subscription request details
-      const { data: requestData, error: requestError } = await supabase
-        .from('subscription_requests')
-        .select('*')
-        .eq('id', requestId)
-        .single();
+        const { data: requestData, error: requestError } = await supabase
+          .from('subscription_requests')
+          .select('*')
+          .eq('id', requestId)
+          .single();
 
-      if (requestError) {
-        console.error('Error fetching request details:', requestError);
-        throw requestError;
-      }
+        if (requestError) {
+          logger.error('Error fetching request details:', requestError);
+          throw requestError;
+        }
 
       // Update subscription_requests status
       const { error: updateStatusError } = await supabase
@@ -273,17 +291,16 @@ const PaymentApprovalSidebar = () => {
             subscription_request_id: requestId
           },
           listing_limit: {
-            type: 'monthly',
-            value: requestData.listings_per_month,
-            reset_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString()
+            type: 'month',
+            value: requestData.listings_per_month
           }
         })
         .eq('id', userId);
 
-      if (profileError) {
-        console.error('Error updating profile:', profileError);
-        throw profileError;
-      }
+        if (profileError) {
+          logger.error('Error updating profile:', profileError);
+          throw profileError;
+        }
 
       // Refresh the requests list
       await fetchPaymentRequests();
@@ -292,7 +309,7 @@ const PaymentApprovalSidebar = () => {
       await refreshSession();
 
     } catch (error) {
-      console.error('Error approving payment:', error);
+      logger.error('Error approving payment:', error);
     } finally {
       setProcessing(null);
     }
@@ -309,189 +326,259 @@ const PaymentApprovalSidebar = () => {
       if (error) throw error;
       await fetchPaymentRequests();
     } catch (error) {
-      console.error('Error rejecting payment:', error);
+      logger.error('Error rejecting payment:', error);
     } finally {
       setProcessing(null);
     }
   };
 
   const renderPaymentRequest = (request: PaymentRequest) => (
-    <div key={request.id} className="border rounded-lg p-4 space-y-3 bg-white">
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="font-semibold text-black">
-            {request.user_profile?.first_name} {request.user_profile?.last_name}
-          </h3>
-          <p className="text-sm text-gray-700">
-            {request.user_profile?.phone_number} • {request.user_profile?.career}
-          </p>
-          <p className="text-sm font-medium mt-1 text-black">
-            Plan: {request.plan_type}
-          </p>
-          <p className="text-sm font-medium text-black">
-            Amount: ${request.amount}
-          </p>
-          <p className="text-sm text-gray-700 mt-1">
-            Submitted: {format(new Date(request.created_at), 'MMM d, yyyy')}
-          </p>
-        </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-semibold 
-          ${request.status === 'pending' ? 'bg-[var(--portal-accent)]/10 text-[var(--portal-accent)] border border-[var(--portal-accent)]/20' : ''}
-          ${request.status === 'approved' ? 'bg-gold-500/10 text-gold-500 border border-gold-500/20' : ''}
-          ${request.status === 'rejected' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : ''}
-        `}>
-          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-        </span>
-      </div>
-
-      {request.receipt_url && (
-        <div className="mt-2">
-          <button
-            onClick={() => setExpandedReceipt(expandedReceipt === request.id ? null : request.id)}
-            className="text-sm text-blue-600 hover:underline"
+    <Card key={request.id} className="bg-white border-[var(--portal-border)] shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden group hover:-translate-y-1">
+      <CardContent className="p-5">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="h-11 w-11 rounded-full bg-gradient-to-br from-[var(--portal-accent)]/20 to-[var(--portal-accent)]/10 flex items-center justify-center flex-shrink-0 group-hover:from-[var(--portal-accent)]/30 group-hover:to-[var(--portal-accent)]/20 transition-all duration-300">
+                <span className="text-base font-bold text-[var(--portal-accent)]">
+                  {request.user_profile?.first_name?.charAt(0) || 'U'}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold text-base text-[var(--portal-text)] truncate">
+                  {request.user_profile?.first_name} {request.user_profile?.last_name}
+                </h3>
+                <p className="text-xs text-[var(--portal-text-secondary)] truncate">
+                  {request.user_profile?.phone_number} • {request.user_profile?.career || 'Agent'}
+                </p>
+              </div>
+            </div>
+          </div>
+          <Badge 
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ml-2
+              ${request.status === 'pending' ? 'bg-[var(--portal-accent)]/10 text-[var(--portal-accent)] border-[var(--portal-accent)]/30' : ''}
+              ${request.status === 'approved' ? 'bg-green-50 text-green-700 border-green-200' : ''}
+              ${request.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' : ''}
+            `}
           >
-            {expandedReceipt === request.id ? 'Hide Receipt' : 'View Receipt'}
-          </button>
-          {expandedReceipt === request.id && (
-            <div className="mt-2 relative">
-              <img
-                src={request.receipt_url}
-                alt="Receipt"
-                className="max-w-full rounded-lg shadow-lg"
-                style={{ maxHeight: '400px', objectFit: 'contain' }}
-              />
+            {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+          </Badge>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-[var(--portal-border)]">
+          <div>
+            <p className="text-xs text-[var(--portal-text-secondary)] mb-0.5">Plan</p>
+            <p className="text-xs font-semibold text-[var(--portal-text)] truncate">{request.plan_type}</p>
+          </div>
+          <div>
+            <p className="text-xs text-[var(--portal-text-secondary)] mb-0.5">Amount</p>
+            <p className="text-xs font-bold text-[var(--portal-accent)]">{request.amount.toLocaleString()} ETB</p>
+          </div>
+          {request.listings_per_month && (
+            <div>
+              <p className="text-xs text-[var(--portal-text-secondary)] mb-0.5">Listings/Month</p>
+              <p className="text-xs font-semibold text-[var(--portal-text)]">{request.listings_per_month}</p>
+            </div>
+          )}
+          {request.duration && (
+            <div>
+              <p className="text-xs text-[var(--portal-text-secondary)] mb-0.5">Duration</p>
+              <p className="text-xs font-semibold text-[var(--portal-text)] truncate">{request.duration}</p>
             </div>
           )}
         </div>
-      )}
 
-      {request.status === 'pending' && (
-        <div className="flex gap-2 mt-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleApprove(request.id, request.user_id)}
-            disabled={processing === request.id}
-          >
-            {processing === request.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Approve
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleReject(request.id)}
-            disabled={processing === request.id}
-          >
-            {processing === request.id ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <XCircle className="h-4 w-4 mr-1" />
-                Reject
-              </>
-            )}
-          </Button>
+        <div className="flex items-center gap-2 text-xs text-[var(--portal-text-secondary)] mb-3">
+          <AlertCircle className="h-3 w-3 flex-shrink-0" />
+          <span className="truncate">{format(new Date(request.created_at), 'MMM d, yyyy • h:mm a')}</span>
         </div>
-      )}
-    </div>
+
+        {request.receipt_url && (
+          <div className="mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSelectedReceiptUrl(request.receipt_url);
+                setReceiptModalOpen(true);
+              }}
+              className="w-full border-[var(--portal-border)] hover:bg-[var(--portal-accent)]/10 hover:border-[var(--portal-accent)] transition-all duration-200 hover:shadow-md"
+            >
+              <ZoomIn className="h-4 w-4 mr-2" />
+              View Receipt
+            </Button>
+          </div>
+        )}
+
+        {request.status === 'pending' && (
+          <div className="flex gap-2 pt-3 border-t border-[var(--portal-border)]">
+            <Button
+              className="flex-1 bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 text-xs py-2"
+              onClick={() => handleApprove(request.id, request.user_id)}
+              disabled={processing === request.id}
+            >
+              {processing === request.id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Approve
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 transition-colors text-xs py-2"
+              onClick={() => handleReject(request.id)}
+              disabled={processing === request.id}
+            >
+              {processing === request.id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              ) : (
+                <XCircle className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Reject
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--portal-accent)] mx-auto mb-4" />
+          <p className="text-sm text-[var(--portal-text-secondary)]">Loading payment requests...</p>
+        </div>
       </div>
     );
   }
 
-  const pendingRequests = requests.filter(r => r.status === 'pending');
-  const approvedRequests = requests.filter(r => r.status === 'approved');
-  const rejectedRequests = requests.filter(r => r.status === 'rejected');
+  // Apply pagination to filtered requests
+  const { from, to } = getPaginationRange(page, pageSize);
+  
+  const allPendingRequests = requests.filter(r => r.status === 'pending');
+  const allApprovedRequests = requests.filter(r => r.status === 'approved');
+  const allRejectedRequests = requests.filter(r => r.status === 'rejected');
+  
+  const pendingRequests = allPendingRequests.slice(from, to + 1);
+  const approvedRequests = allApprovedRequests.slice(from, to + 1);
+  const rejectedRequests = allRejectedRequests.slice(from, to + 1);
+
+  const EmptyState = ({ message }: { message: string }) => (
+    <div className="flex flex-col items-center justify-center py-16 px-4">
+      <div className="h-16 w-16 rounded-full bg-gradient-to-br from-[var(--portal-accent)]/10 to-[var(--portal-accent)]/5 flex items-center justify-center mb-4">
+        <AlertCircle className="h-8 w-8 text-[var(--portal-accent)]" />
+      </div>
+      <p className="text-lg font-semibold text-[var(--portal-text)] mb-2">No requests found</p>
+      <p className="text-sm text-[var(--portal-text-secondary)] text-center max-w-md">{message}</p>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col bg-white min-h-screen w-full">
-      <div className="flex-none p-4">
-        <h2 className="text-2xl font-bold text-black">Payment Approvals</h2>
-      </div>
-      
-      <Tabs defaultValue="pending" className="w-full flex flex-col flex-1">
-        <div className="flex-none px-4">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-100">
-            <TabsTrigger value="pending" className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white">
+    <div className="flex flex-col w-full max-w-6xl mx-auto">
+      <Tabs defaultValue="pending" className="w-full">
+        <div className="mb-6">
+          <TabsList className="grid w-full grid-cols-3 bg-white border border-[var(--portal-border)] p-1 rounded-lg shadow-sm">
+            <TabsTrigger 
+              value="pending" 
+              className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
               Pending
-              {pendingRequests.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {pendingRequests.length}
+              {allPendingRequests.length > 0 && (
+                <Badge className="ml-1 bg-[var(--portal-accent)]/20 text-[var(--portal-accent)] border-[var(--portal-accent)]/30 data-[state=active]:bg-white/20 data-[state=active]:text-white data-[state=active]:border-white/30">
+                  {allPendingRequests.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="approved" className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white">
+            <TabsTrigger 
+              value="approved" 
+              className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
               Approved
-              {approvedRequests.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {approvedRequests.length}
+              {allApprovedRequests.length > 0 && (
+                <Badge className="ml-1 bg-[var(--portal-accent)]/20 text-[var(--portal-accent)] border-[var(--portal-accent)]/30 data-[state=active]:bg-white/20 data-[state=active]:text-white data-[state=active]:border-white/30">
+                  {allApprovedRequests.length}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="rejected" className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white">
+            <TabsTrigger 
+              value="rejected" 
+              className="flex items-center gap-2 data-[state=active]:bg-[var(--portal-accent)] data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
+            >
               Rejected
-              {rejectedRequests.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {rejectedRequests.length}
+              {allRejectedRequests.length > 0 && (
+                <Badge className="ml-1 bg-[var(--portal-accent)]/20 text-[var(--portal-accent)] border-[var(--portal-accent)]/30 data-[state=active]:bg-white/20 data-[state=active]:text-white data-[state=active]:border-white/30">
+                  {allRejectedRequests.length}
                 </Badge>
               )}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <div className="flex-1">
-          <ScrollArea className="h-[calc(100vh-180px)]">
-            <div className="p-4 pb-24 md:pb-4">
-              <TabsContent value="pending">
-                {pendingRequests.length === 0 ? (
-                  <div className="text-center p-8 text-gray-500">
-                    No pending payment requests
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {pendingRequests.map(renderPaymentRequest)}
-                  </div>
-                )}
-              </TabsContent>
+        <div className="space-y-6">
+          <TabsContent value="pending" className="mt-0">
+            {pendingRequests.length === 0 ? (
+              <EmptyState message="No pending payment requests at this time. All requests have been processed." />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pendingRequests.map(renderPaymentRequest)}
+              </div>
+            )}
+          </TabsContent>
 
-              <TabsContent value="approved">
-                {approvedRequests.length === 0 ? (
-                  <div className="text-center p-8 text-gray-500">
-                    No approved payment requests
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {approvedRequests.map(renderPaymentRequest)}
-                  </div>
-                )}
-              </TabsContent>
+          <TabsContent value="approved" className="mt-0">
+            {approvedRequests.length === 0 ? (
+              <EmptyState message="No approved payment requests found. Approved requests will appear here." />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {approvedRequests.map(renderPaymentRequest)}
+              </div>
+            )}
+          </TabsContent>
 
-              <TabsContent value="rejected">
-                {rejectedRequests.length === 0 ? (
-                  <div className="text-center p-8 text-gray-500">
-                    No rejected payment requests
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {rejectedRequests.map(renderPaymentRequest)}
-                  </div>
-                )}
-              </TabsContent>
-            </div>
-          </ScrollArea>
+          <TabsContent value="rejected" className="mt-0">
+            {rejectedRequests.length === 0 ? (
+              <EmptyState message="No rejected payment requests found. Rejected requests will appear here." />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {rejectedRequests.map(renderPaymentRequest)}
+              </div>
+            )}
+          </TabsContent>
         </div>
       </Tabs>
+
+      {/* Receipt Modal */}
+      <Dialog open={receiptModalOpen} onOpenChange={setReceiptModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-[var(--portal-text)] flex items-center gap-2">
+              <ZoomIn className="h-5 w-5 text-[var(--portal-accent)]" />
+              Payment Receipt
+            </DialogTitle>
+            <DialogDescription className="text-[var(--portal-text-secondary)]">
+              Review the payment receipt image
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 relative rounded-lg overflow-hidden border-2 border-[var(--portal-border)] bg-gray-50 p-6 flex items-center justify-center min-h-[400px]">
+            {selectedReceiptUrl && (
+              <img
+                src={selectedReceiptUrl}
+                alt="Payment Receipt"
+                className="max-w-full max-h-[70vh] rounded-lg shadow-xl object-contain"
+              />
+            )}
+          </div>
+          <div className="flex justify-end mt-4">
+            <Button
+              onClick={() => setReceiptModalOpen(false)}
+              className="bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 text-white"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

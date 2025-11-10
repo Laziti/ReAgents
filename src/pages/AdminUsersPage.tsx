@@ -53,6 +53,10 @@ import { Users, Crown, UserPlus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
+import { batchFetchProfiles, batchFetchListingCounts } from '@/lib/query-optimization';
+import { sanitizeInput, sanitizeEmail, sanitizePhoneNumber } from '@/lib/sanitize';
+import { paginateQuery, getPaginationRange } from '@/lib/pagination';
 
 type ListingLimitType = 'day' | 'week' | 'month' | 'year' | 'unlimited';
 type SubscriptionStatus = 'free' | 'pro';
@@ -133,10 +137,12 @@ const AdminUsersPage = () => {
     subscription_duration: 'monthly',
     listing_limit: {
       type: 'month',
-      value: 5
+      value: 10
     }
   });
   const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   
   const form = useForm<LimitFormValues>({
     defaultValues: {
@@ -148,69 +154,61 @@ const AdminUsersPage = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      console.log('Fetching profiles...');
+      logger.log('Fetching profiles...');
+      // Use batch fetching for optimization
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      console.log('Profiles data:', profiles);
-      console.log('Profiles error:', profilesError);
+      logger.log('Profiles data:', profiles);
+      logger.log('Profiles error:', profilesError);
       if (profilesError) {
-        console.error('Profiles fetch error:', profilesError);
+        logger.error('Profiles fetch error:', profilesError);
         throw profilesError;
       }
 
       if (!profiles || profiles.length === 0) {
-        console.warn('No profiles found');
+        logger.warn('No profiles found');
         setUsers([]);
         return;
       }
 
-      console.log('Fetching auth users data...');
+      logger.log('Fetching auth users data...');
       const { data: authUsersData, error: authUsersError } = await supabase
         .rpc('get_auth_users_data');
 
-      console.log('Auth users data:', authUsersData);
-      console.log('Auth users error:', authUsersError);
+      logger.log('Auth users data:', authUsersData);
+      logger.log('Auth users error:', authUsersError);
       if (authUsersError) {
-        console.error('Auth users fetch error:', authUsersError);
+        logger.error('Auth users fetch error:', authUsersError);
         throw authUsersError;
       }
 
       if (!authUsersData || authUsersData.length === 0) {
-        console.warn('No auth users data found');
+        logger.warn('No auth users data found');
         setUsers([]);
         return;
       }
 
-      console.log('Fetching listing counts...');
-      const { data: listingCounts, error: listingCountError } = await supabase
-        .from('listings')
-        .select('user_id, id')
-        .then(result => {
-          if (result.error) throw result.error;
-          // Count listings per user
-          const counts = result.data.reduce((acc: Record<string, number>, curr) => {
-            acc[curr.user_id] = (acc[curr.user_id] || 0) + 1;
-            return acc;
-          }, {});
-          return { data: counts, error: null };
-        });
+      logger.log('Fetching listing counts...');
+      // Use batch fetching for optimization
+      const userIds = profiles.map(p => p.id);
+      const listingCountsMap = await batchFetchListingCounts(supabase, userIds);
 
-      console.log('Listing counts:', listingCounts);
-      console.log('Listing count error:', listingCountError);
-      if (listingCountError) {
-        console.error('Listing count error:', listingCountError);
-        throw listingCountError;
-      }
+      logger.log('Listing counts:', listingCountsMap);
 
       const usersData = profiles.map(profile => {
         const authUser = authUsersData.find((user: any) => user.id === profile.id);
-        const listingCount = listingCounts[profile.id] || 0;
+        const listingCount = listingCountsMap.get(profile.id) || 0;
         
         let listingLimit: ListingLimit | undefined;
         if (profile.listing_limit) {
-          const type = profile.listing_limit.type as ListingLimitType;
+          let type = profile.listing_limit.type as ListingLimitType;
+          // Fix 'monthly' type to 'month' for backward compatibility
+          if (type === 'monthly') {
+            type = 'month';
+          }
           if (type === 'unlimited') {
             listingLimit = { type };
           } else if (type && ['day', 'week', 'month', 'year'].includes(type)) {
@@ -219,7 +217,15 @@ const AdminUsersPage = () => {
               value: profile.listing_limit.value
             };
           }
+        } else if (profile.subscription_details && profile.subscription_details.listings_per_month) {
+          // If listing_limit is null but subscription_details has listings_per_month, use that
+          listingLimit = {
+            type: 'month',
+            value: profile.subscription_details.listings_per_month
+          };
         }
+
+        const normalizedStatus: 'active' | 'inactive' = profile.status === 'inactive' ? 'inactive' : 'active';
 
         return {
           id: profile.id,
@@ -227,8 +233,8 @@ const AdminUsersPage = () => {
           first_name: profile.first_name || '',
           last_name: profile.last_name || '',
           phone_number: profile.phone_number || '',
-          status: (profile.status || 'inactive') as 'active' | 'inactive',
-          created_at: profile.updated_at || new Date().toISOString(),
+          status: normalizedStatus,
+          created_at: profile.created_at || new Date().toISOString(),
           career: profile.career || '',
           listing_count: listingCount,
           listing_limit: listingLimit,
@@ -238,11 +244,12 @@ const AdminUsersPage = () => {
         };
       });
 
-      console.log('Processed users data:', usersData);
+      logger.log('Processed users data:', usersData);
       setUsers(usersData);
+      // Initial filter - will be updated by applyFilters
       setFilteredUsers(usersData);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      logger.error('Error fetching users:', error);
       setUsers([]);
       setFilteredUsers([]);
     } finally {
@@ -251,7 +258,12 @@ const AdminUsersPage = () => {
   };
 
   const applyFilters = (userList: User[], search: string, filterOptions: FilterOptions) => {
-    let filtered = [...userList];
+    // Sort by created_at descending (most recent first)
+    let filtered = [...userList].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return dateB - dateA; // Descending order (newest first)
+    });
     
     // Apply status filter
     if (filterOptions.status !== 'all') {
@@ -269,7 +281,11 @@ const AdminUsersPage = () => {
       );
     }
     
-    setFilteredUsers(filtered);
+    // Apply pagination
+    const { from, to } = getPaginationRange(page, pageSize);
+    const paginated = filtered.slice(from, to + 1);
+    
+    setFilteredUsers(paginated);
   };
 
   useEffect(() => {
@@ -278,7 +294,7 @@ const AdminUsersPage = () => {
 
   useEffect(() => {
     applyFilters(users, searchTerm, filters);
-  }, [searchTerm, filters]);
+  }, [searchTerm, filters, page]);
 
   const handleDelete = async () => {
     if (!selectedUser) return;
@@ -340,17 +356,17 @@ const AdminUsersPage = () => {
     if (user.listing_limit) {
       form.reset({
         type: user.listing_limit.type || 'month',
-        value: user.listing_limit.value || 5
+        value: user.listing_limit.value || 10
       });
     } else {
-      form.reset({ type: 'month', value: 5 });
+      form.reset({ type: 'month', value: 10 });
     }
     
     setLimitDialogOpen(true);
   };
 
   const renderLimitBadge = (limit?: ListingLimit): React.ReactNode => {
-    if (!limit) return <span className="text-red-600 font-semibold">Default (5/month)</span>;
+    if (!limit) return <span className="text-red-600 font-semibold">Default (10/month)</span>;
     if (limit.type === 'unlimited') {
       return <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">Unlimited</Badge>;
     }
@@ -412,7 +428,7 @@ const AdminUsersPage = () => {
       });
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching user stats:', error);
+      logger.error('Error fetching user stats:', error);
       setLoading(false);
     }
   };
@@ -478,7 +494,7 @@ const AdminUsersPage = () => {
       }
       
       // Add listing limit if different from default
-      if (newUser.listing_limit.type !== 'month' || newUser.listing_limit.value !== 5) {
+      if (newUser.listing_limit.type !== 'month' || newUser.listing_limit.value !== 10) {
         updateData.listing_limit = newUser.listing_limit.type === 'unlimited' 
           ? { type: 'unlimited' as const }
           : { 
@@ -498,7 +514,7 @@ const AdminUsersPage = () => {
           .select('id')
           .eq('slug', slug);
         if (slugError) {
-          console.error('Slug check error:', slugError);
+          logger.error('Slug check error:', slugError);
           throw slugError;
         }
         if (!existing || existing.length === 0) {
@@ -517,7 +533,7 @@ const AdminUsersPage = () => {
           .update(updateData)
           .eq('id', userId);
         if (updateError) {
-          console.error('Profile update error:', updateError);
+          logger.error('Profile update error:', updateError);
           throw updateError;
         }
       }
@@ -538,7 +554,7 @@ const AdminUsersPage = () => {
         }
       });
     } catch (error: any) {
-      console.error('Error creating user:', error);
+      logger.error('Error creating user:', error);
       toast.error(error.message || 'Failed to create user');
     } finally {
       setLoading(false);
@@ -623,7 +639,7 @@ const AdminUsersPage = () => {
                             <Input
                               id="first_name"
                               value={newUser.first_name}
-                              onChange={(e) => setNewUser(prev => ({ ...prev, first_name: e.target.value }))}
+                              onChange={(e) => setNewUser(prev => ({ ...prev, first_name: sanitizeInput(e.target.value) }))}
                               className="bg-white text-black focus:border-red-600"
                             />
                           </div>
@@ -632,7 +648,7 @@ const AdminUsersPage = () => {
                             <Input
                               id="last_name"
                               value={newUser.last_name}
-                              onChange={(e) => setNewUser(prev => ({ ...prev, last_name: e.target.value }))}
+                              onChange={(e) => setNewUser(prev => ({ ...prev, last_name: sanitizeInput(e.target.value) }))}
                               className="bg-white text-black focus:border-red-600"
                             />
                           </div>
@@ -643,7 +659,7 @@ const AdminUsersPage = () => {
                             id="email"
                             type="email"
                             value={newUser.email}
-                            onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                            onChange={(e) => setNewUser(prev => ({ ...prev, email: sanitizeEmail(e.target.value) }))}
                             className="bg-white text-black focus:border-red-600"
                           />
                         </div>
@@ -703,7 +719,7 @@ const AdminUsersPage = () => {
                                   listing_limit: {
                                     ...prev.listing_limit,
                                     type: value,
-                                    value: value === 'unlimited' ? undefined : (prev.listing_limit.value || 5)
+                                    value: value === 'unlimited' ? undefined : (prev.listing_limit.value || 10)
                                   }
                                 }))
                               }
@@ -732,7 +748,7 @@ const AdminUsersPage = () => {
                                   ...prev,
                                   listing_limit: {
                                     ...prev.listing_limit,
-                                    value: parseInt(e.target.value) || 5
+                                    value: parseInt(e.target.value) || 10
                                   }
                                 }))}
                                 className="bg-white text-black focus:border-red-600"
@@ -758,39 +774,45 @@ const AdminUsersPage = () => {
                   <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <Crown className="h-5 w-5 text-gold-500" />
+                        <Crown className="h-5 w-5 text-[var(--portal-accent)]" />
                         <CardTitle className="text-black">Pro Users</CardTitle>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Name</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Listing Limit</TableHead>
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {loading ? (
+                      <div className="rounded-md border overflow-hidden">
+                        <div className="max-h-[600px] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                          <Table>
+                            <TableHeader className="sticky top-0 bg-white z-10">
                               <TableRow>
-                                <TableCell colSpan={6} className="text-center py-4">
-                                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                                </TableCell>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Listing Limit</TableHead>
+                                <TableHead>Actions</TableHead>
                               </TableRow>
-                            ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
-                                  No pro users found
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              filteredUsers
-                                .filter(user => user.subscription_status === 'pro')
-                                .map((user) => (
+                            </TableHeader>
+                            <TableBody>
+                              {loading ? (
+                                <TableRow>
+                                  <TableCell colSpan={6} className="text-center py-4">
+                                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-[var(--portal-accent)]" />
+                                  </TableCell>
+                                </TableRow>
+                              ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                                    No pro users found
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                filteredUsers
+                                  .filter(user => user.subscription_status === 'pro')
+                                  .sort((a, b) => {
+                                    const dateA = new Date(a.created_at).getTime();
+                                    const dateB = new Date(b.created_at).getTime();
+                                    return dateB - dateA; // Descending order (newest first)
+                                  })
+                                  .map((user) => (
                                   <TableRow key={user.id}>
                                     <TableCell>
                                       <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
@@ -828,8 +850,9 @@ const AdminUsersPage = () => {
                                   </TableRow>
                                 ))
                             )}
-                          </TableBody>
-                        </Table>
+                            </TableBody>
+                          </Table>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -838,39 +861,45 @@ const AdminUsersPage = () => {
                   <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-blue-500" />
+                        <Users className="h-5 w-5 text-[var(--portal-accent)]" />
                         <CardTitle className="text-black">Free Users</CardTitle>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Name</TableHead>
-                              <TableHead>Email</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Listing Limit</TableHead>
-                              <TableHead>Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {loading ? (
+                      <div className="rounded-md border overflow-hidden">
+                        <div className="max-h-[600px] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                          <Table>
+                            <TableHeader className="sticky top-0 bg-white z-10">
                               <TableRow>
-                                <TableCell colSpan={5} className="text-center py-4">
-                                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                                </TableCell>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Listing Limit</TableHead>
+                                <TableHead>Actions</TableHead>
                               </TableRow>
-                            ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                                  No free users found
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              filteredUsers
-                                .filter(user => user.subscription_status === 'free')
-                                .map((user) => (
+                            </TableHeader>
+                            <TableBody>
+                              {loading ? (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center py-4">
+                                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-[var(--portal-accent)]" />
+                                  </TableCell>
+                                </TableRow>
+                              ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                                    No free users found
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                filteredUsers
+                                  .filter(user => user.subscription_status === 'free')
+                                  .sort((a, b) => {
+                                    const dateA = new Date(a.created_at).getTime();
+                                    const dateB = new Date(b.created_at).getTime();
+                                    return dateB - dateA; // Descending order (newest first)
+                                  })
+                                  .map((user) => (
                                   <TableRow key={user.id}>
                                     <TableCell>
                                       <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
@@ -908,8 +937,9 @@ const AdminUsersPage = () => {
                                   </TableRow>
                                 ))
                             )}
-                          </TableBody>
-                        </Table>
+                            </TableBody>
+                          </Table>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

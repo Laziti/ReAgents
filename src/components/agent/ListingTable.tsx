@@ -13,7 +13,7 @@ import { Edit, Eye } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { formatCurrency } from '@/lib/formatters';
 import ListingDetailCard from './ListingDetailCard';
-import ListingCard from '@/components/public/ListingCard';
+import AgentListingCard from '@/components/agent/AgentListingCard';
 
 interface Listing {
   id: string;
@@ -22,12 +22,16 @@ interface Listing {
   location?: string;
   created_at: string;
   main_image_url?: string;
+  additional_image_urls?: string[];
   edit_count?: number;
   description?: string;
   phone_number?: string;
   whatsapp_link?: string;
   telegram_link?: string;
   status?: string;
+  expires_at?: string;
+  views?: number;
+  progress_status?: 'excavation' | 'on_progress' | 'semi_finished' | 'fully_finished';
 }
 
 interface ListingTableProps {
@@ -46,7 +50,7 @@ const ListingTable = ({ listings, onEdit }: ListingTableProps) => {
           <div className="p-8 text-center">
             <h3 className="text-lg font-medium text-[var(--portal-text)] mb-2">No listings found</h3>
             <p className="text-[var(--portal-text-secondary)] mb-4">You haven't created any listings yet.</p>
-            <Button onClick={() => navigate('/agent?tab=create')}>Create Your First Listing</Button>
+            <Button onClick={() => navigate('/agent/image-selection')}>Create Your First Listing</Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-6">
@@ -67,13 +71,17 @@ const ListingTable = ({ listings, onEdit }: ListingTableProps) => {
                     {`Edits left: ${2 - (listing.edit_count ?? 0)}`}
                   </span>
                 </div>
-                <ListingCard
+                <AgentListingCard
                   id={listing.id}
                   title={listing.title}
                   location={listing.location}
                   mainImageUrl={listing.main_image_url}
                   description={listing.description}
                   createdAt={listing.created_at}
+                  expiresAt={listing.expires_at}
+                  views={listing.views}
+                  progressStatus={listing.progress_status}
+                  bankOption={listing.bank_option}
                   onViewDetails={() => setSelectedListing(listing)}
                 />
               </div>

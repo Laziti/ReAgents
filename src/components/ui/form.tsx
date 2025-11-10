@@ -14,6 +14,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { logger } from "@/lib/logger"
 
 const Form = FormProvider
 
@@ -52,7 +53,7 @@ const useFormField = () => {
 
   // If no formContext is found, return a safe fallback to prevent crashes
   if (!formContext) {
-    console.error("useFormField should be used within <Form>. Rendering with limited functionality.")
+    logger.error("useFormField should be used within <Form>. Rendering with limited functionality.")
     return {
       id: itemContext?.id || "form-item",
       name: fieldContext.name,

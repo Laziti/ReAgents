@@ -4,6 +4,7 @@ import { Check, ArrowRight, Clock, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 interface PricingPlan {
   id: string;
@@ -18,18 +19,26 @@ const pricingPlans: PricingPlan[] = [
   {
     id: 'basic-monthly',
     name: 'Basic Monthly',
-    price: 1000,
+    price: 300,
     duration: '1 month',
-    listingsPerMonth: 10,
-    features: ['10 listings per month', 'Basic support', 'Standard features']
+    listingsPerMonth: 30,
+    features: ['30 listings per month', 'Basic support', 'Standard features', 'Listings expire after 2 months']
   },
   {
     id: 'pro-monthly',
     name: 'Pro Monthly',
-    price: 2000,
+    price: 500,
     duration: '1 month',
     listingsPerMonth: 50,
-    features: ['50 listings per month', 'Priority support', 'Advanced features']
+    features: ['50 listings per month', 'Priority support', 'Advanced features', 'Listings expire after 2 months']
+  },
+  {
+    id: 'pro-6month',
+    name: 'Pro 6-Month',
+    price: 2500,
+    duration: '6 months',
+    listingsPerMonth: 50,
+    features: ['50 listings per month', 'Priority support', 'Advanced features', 'Best value - Save 17%', 'Listings expire after 2 months']
   }
 ];
 
@@ -56,7 +65,7 @@ const UpgradeSidebar = () => {
           .limit(1);
 
         if (error) {
-          console.error('Error checking pending requests:', error);
+          logger.error('Error checking pending requests:', error);
           return;
         }
 
@@ -65,7 +74,7 @@ const UpgradeSidebar = () => {
           setPendingRequest(data[0]);
         }
       } catch (error) {
-        console.error('Error checking pending requests:', error);
+        logger.error('Error checking pending requests:', error);
       } finally {
         setIsLoading(false);
       }
@@ -148,7 +157,7 @@ const UpgradeSidebar = () => {
         Upgrade to Pro
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {pricingPlans.map((plan) => (
           <div
             key={plan.id}
@@ -199,6 +208,12 @@ const UpgradeSidebar = () => {
           <li>3. Wait for approval (usually within 24 hours)</li>
           <li>4. Start enjoying your upgraded features!</li>
         </ol>
+      </div>
+
+      <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <p className="text-sm text-amber-800">
+          <strong>Important:</strong> All listings expire 2 months after creation. This helps keep our platform fresh and ensures active listings. You can always create new listings within your monthly limit.
+        </p>
       </div>
 
       <div className="mt-6 text-center">
