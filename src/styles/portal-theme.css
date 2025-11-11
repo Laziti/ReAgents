@@ -401,3 +401,63 @@ button.submit-button:hover, button.primary-button:hover, button[type="submit"]:h
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Chrome, Safari and Opera */
 }
+
+/* Visible scrollbar styling for tables - Always show scrollbars */
+.table-scroll-container {
+  scrollbar-width: auto; /* Firefox - always show scrollbar */
+  scrollbar-color: #94a3b8 #f1f5f9;
+  -ms-overflow-style: scrollbar; /* IE and Edge - always show scrollbar */
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+  /* Force hardware acceleration for smooth scrolling */
+  will-change: scroll-position;
+  /* Ensure the container respects width constraints */
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+  width: 12px; /* Make scrollbar more visible */
+  height: 12px;
+  -webkit-appearance: none;
+  display: block; /* Always show scrollbar */
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+  -webkit-box-shadow: inset 0 0 2px rgba(0,0,0,0.1);
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 6px;
+  min-height: 30px;
+  min-width: 30px;
+  border: 2px solid #f1f5f9;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:active {
+  background: #475569;
+}
+
+.table-scroll-container::-webkit-scrollbar-corner {
+  background: #f1f5f9;
+}
+
+/* Ensure tables inside scroll containers can scroll */
+.table-scroll-container table {
+  display: table;
+  table-layout: auto;
+}
+
+/* Fix for iOS Safari scrolling */
+@supports (-webkit-overflow-scrolling: touch) {
+  .table-scroll-container {
+    -webkit-overflow-scrolling: touch;
+  }
+}

@@ -1,14 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import AdminSidebar from '@/components/AdminSidebar';
-import { 
-  Table, 
-  TableHeader, 
-  TableRow, 
-  TableHead, 
-  TableBody, 
-  TableCell 
-} from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchInput } from '@/components/ui/search-input';
@@ -596,91 +588,91 @@ const AdminUsersPage = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full md:pl-72">
-        <div className="flex h-screen w-full">
+      <div className="h-screen w-full overflow-hidden">
+        <div className="flex h-full w-full">
           <AdminSidebar />
-          <SidebarInset>
-            <div className="bg-white min-h-screen flex flex-col">
-              <div className="flex items-center justify-between border-b p-4">
-                <div className="flex items-center">
-                  <SidebarTrigger />
-                  <h1 className="ml-4 text-xl font-semibold text-black">User Management</h1>
+          <SidebarInset className="w-full md:ml-72">
+            <div className="bg-white h-full flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between border-b p-2 sm:p-3 md:p-4 flex-shrink-0">
+                <div className="flex items-center min-w-0 flex-1">
+                  <h1 className="ml-0 md:ml-0 text-base sm:text-lg md:text-xl font-semibold text-black truncate">User Management</h1>
                 </div>
               </div>
-              <div className="p-6 space-y-6 overflow-auto flex-1">
+              <div className="p-2 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden pb-20 md:pb-6">
                 {/* Search and Filter */}
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="flex-1">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
+                  <div className="flex-1 min-w-0 w-full sm:w-auto">
                     <SearchInput
                       placeholder="Search users"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="max-w-sm bg-white"
+                      className="w-full bg-white text-sm sm:text-base"
                     />
                   </div>
                   <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="bg-red-600 hover:bg-red-700 text-white">
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Create User
+                      <Button className="bg-red-600 hover:bg-red-700 text-white whitespace-nowrap flex-shrink-0 w-full sm:w-auto text-sm sm:text-base px-3 sm:px-4">
+                        <UserPlus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                        <span className="hidden sm:inline">Create User</span>
+                        <span className="sm:hidden">Create</span>
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl bg-white">
+                    <DialogContent className="max-w-[95vw] sm:max-w-2xl bg-white max-h-[90vh] overflow-y-auto mx-2 sm:mx-4">
                       <DialogHeader>
-                        <DialogTitle className="text-black">Create New User</DialogTitle>
-                        <DialogDescription className="text-black">
+                        <DialogTitle className="text-black text-lg sm:text-xl">Create New User</DialogTitle>
+                        <DialogDescription className="text-black text-sm sm:text-base">
                           Create a new agent account with subscription details.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="first_name" className="text-black">First Name</Label>
+                      <div className="space-y-3 sm:space-y-4 py-2 sm:py-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <div className="space-y-1.5 sm:space-y-2">
+                            <Label htmlFor="first_name" className="text-black text-sm sm:text-base">First Name</Label>
                             <Input
                               id="first_name"
                               value={newUser.first_name}
                               onChange={(e) => setNewUser(prev => ({ ...prev, first_name: sanitizeInput(e.target.value) }))}
-                              className="bg-white text-black focus:border-red-600"
+                              className="bg-white text-black focus:border-red-600 text-sm sm:text-base h-9 sm:h-10"
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="last_name" className="text-black">Last Name</Label>
+                          <div className="space-y-1.5 sm:space-y-2">
+                            <Label htmlFor="last_name" className="text-black text-sm sm:text-base">Last Name</Label>
                             <Input
                               id="last_name"
                               value={newUser.last_name}
                               onChange={(e) => setNewUser(prev => ({ ...prev, last_name: sanitizeInput(e.target.value) }))}
-                              className="bg-white text-black focus:border-red-600"
+                              className="bg-white text-black focus:border-red-600 text-sm sm:text-base h-9 sm:h-10"
                             />
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="email" className="text-black">Email</Label>
+                        <div className="space-y-1.5 sm:space-y-2">
+                          <Label htmlFor="email" className="text-black text-sm sm:text-base">Email</Label>
                           <Input
                             id="email"
                             type="email"
                             value={newUser.email}
                             onChange={(e) => setNewUser(prev => ({ ...prev, email: sanitizeEmail(e.target.value) }))}
-                            className="bg-white text-black focus:border-red-600"
+                            className="bg-white text-black focus:border-red-600 text-sm sm:text-base h-9 sm:h-10"
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="password" className="text-black">Password</Label>
+                        <div className="space-y-1.5 sm:space-y-2">
+                          <Label htmlFor="password" className="text-black text-sm sm:text-base">Password</Label>
                           <Input
                             id="password"
                             type="password"
                             value={newUser.password}
                             onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                            className="bg-white text-black focus:border-red-600"
+                            className="bg-white text-black focus:border-red-600 text-sm sm:text-base h-9 sm:h-10"
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="subscription" className="text-black">Subscription Type</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <div className="space-y-1.5 sm:space-y-2">
+                            <Label htmlFor="subscription" className="text-black text-sm sm:text-base">Subscription Type</Label>
                             <Select
                               value={newUser.subscription_status}
                               onValueChange={(value: 'free' | 'pro') => setNewUser(prev => ({ ...prev, subscription_status: value }))}
                             >
-                              <SelectTrigger className="bg-white text-black focus:border-red-600">
+                              <SelectTrigger className="bg-white text-black focus:border-red-600 text-sm sm:text-base h-9 sm:h-10">
                                 <SelectValue placeholder="Select subscription type" />
                               </SelectTrigger>
                               <SelectContent>
@@ -690,13 +682,13 @@ const AdminUsersPage = () => {
                             </Select>
                           </div>
                           {newUser.subscription_status === 'pro' && (
-                            <div className="space-y-2">
-                              <Label htmlFor="duration" className="text-black">Subscription Duration</Label>
+                            <div className="space-y-1.5 sm:space-y-2">
+                              <Label htmlFor="duration" className="text-black text-sm sm:text-base">Subscription Duration</Label>
                               <Select
                                 value={newUser.subscription_duration}
                                 onValueChange={(value: 'monthly' | '6months' | 'yearly') => setNewUser(prev => ({ ...prev, subscription_duration: value }))}
                               >
-                                <SelectTrigger className="bg-white text-black focus:border-red-600">
+                                <SelectTrigger className="bg-white text-black focus:border-red-600 text-sm sm:text-base h-9 sm:h-10">
                                   <SelectValue placeholder="Select duration" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -708,9 +700,9 @@ const AdminUsersPage = () => {
                             </div>
                           )}
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="limit_type" className="text-black">Listing Limit Type</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          <div className="space-y-1.5 sm:space-y-2">
+                            <Label htmlFor="limit_type" className="text-black text-sm sm:text-base">Listing Limit Type</Label>
                             <Select
                               value={newUser.listing_limit.type}
                               onValueChange={(value: 'day' | 'week' | 'month' | 'year' | 'unlimited') => 
@@ -724,7 +716,7 @@ const AdminUsersPage = () => {
                                 }))
                               }
                             >
-                              <SelectTrigger className="bg-white text-black focus:border-red-600">
+                              <SelectTrigger className="bg-white text-black focus:border-red-600 text-sm sm:text-base h-9 sm:h-10">
                                 <SelectValue placeholder="Select limit type" />
                               </SelectTrigger>
                               <SelectContent>
@@ -737,8 +729,8 @@ const AdminUsersPage = () => {
                             </Select>
                           </div>
                           {newUser.listing_limit.type !== 'unlimited' && (
-                            <div className="space-y-2">
-                              <Label htmlFor="limit_value" className="text-black">Listing Limit Value</Label>
+                            <div className="space-y-1.5 sm:space-y-2">
+                              <Label htmlFor="limit_value" className="text-black text-sm sm:text-base">Listing Limit Value</Label>
                               <Input
                                 id="limit_value"
                                 type="number"
@@ -751,13 +743,13 @@ const AdminUsersPage = () => {
                                     value: parseInt(e.target.value) || 10
                                   }
                                 }))}
-                                className="bg-white text-black focus:border-red-600"
+                                className="bg-white text-black focus:border-red-600 text-sm sm:text-base h-9 sm:h-10"
                               />
                             </div>
                           )}
                         </div>
                         <Button 
-                          className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white" 
+                          className="w-full mt-3 sm:mt-4 bg-red-600 hover:bg-red-700 text-white text-sm sm:text-base h-9 sm:h-10" 
                           onClick={handleCreateUser}
                           disabled={!newUser.email || !newUser.password || !newUser.first_name || !newUser.last_name}
                         >
@@ -769,89 +761,93 @@ const AdminUsersPage = () => {
                 </div>
 
                 {/* User Categories */}
-                <div className="grid gap-6">
+                <div className="grid gap-3 sm:gap-4 md:gap-6">
                   {/* Pro Users */}
                   <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Crown className="h-5 w-5 text-[var(--portal-accent)]" />
-                        <CardTitle className="text-black">Pro Users</CardTitle>
+                    <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-4 md:p-6">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--portal-accent)]" />
+                        <CardTitle className="text-black text-base sm:text-lg md:text-xl">Pro Users</CardTitle>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="rounded-md border overflow-hidden">
-                        <div className="max-h-[600px] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-                          <Table>
-                            <TableHeader className="sticky top-0 bg-white z-10">
-                              <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Listing Limit</TableHead>
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {loading ? (
-                                <TableRow>
-                                  <TableCell colSpan={6} className="text-center py-4">
-                                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-[var(--portal-accent)]" />
-                                  </TableCell>
-                                </TableRow>
-                              ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
-                                <TableRow>
-                                  <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
-                                    No pro users found
-                                  </TableCell>
-                                </TableRow>
-                              ) : (
-                                filteredUsers
-                                  .filter(user => user.subscription_status === 'pro')
-                                  .sort((a, b) => {
-                                    const dateA = new Date(a.created_at).getTime();
-                                    const dateB = new Date(b.created_at).getTime();
-                                    return dateB - dateA; // Descending order (newest first)
-                                  })
-                                  .map((user) => (
-                                  <TableRow key={user.id}>
-                                    <TableCell>
-                                      <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
-                                    </TableCell>
-                                    <TableCell className="truncate max-w-[150px] text-black">{user.email}</TableCell>
-                                    <TableCell>
-                                      <Badge 
-                                        variant={user.status === 'active' ? 'outline' : 'secondary'} 
-                                        className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
-                                      >
-                                        {user.status}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
-                                    <TableCell>
-                                      <div className="flex items-center gap-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                                          onClick={() => openDetailsDialog(user)}
+                    <CardContent className="p-2 sm:p-3 md:p-4 lg:p-6">
+                      <div className="rounded-md border overflow-hidden w-full">
+                        <div className="table-scroll-container w-full overflow-x-scroll overflow-y-scroll max-h-[300px] sm:max-h-[400px] md:max-h-[500px] lg:max-h-[600px]" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'auto', msOverflowStyle: 'scrollbar' }}>
+                          <table className="divide-y divide-gray-200 border-collapse" style={{ minWidth: '800px' }}>
+                              <thead className="sticky top-0 bg-white z-20 shadow-sm">
+                                <tr>
+                                  <th scope="col" className="sticky left-0 bg-white z-30 h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[100px] sm:min-w-[120px] whitespace-nowrap text-xs sm:text-sm border-r border-gray-200">Name</th>
+                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[150px] sm:min-w-[180px] md:min-w-[200px] whitespace-nowrap text-xs sm:text-sm">Email</th>
+                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[80px] sm:min-w-[100px] whitespace-nowrap text-xs sm:text-sm">Status</th>
+                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[120px] sm:min-w-[140px] whitespace-nowrap text-xs sm:text-sm">Listing Limit</th>
+                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[160px] sm:min-w-[180px] md:min-w-[200px] whitespace-nowrap text-xs sm:text-sm">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {loading ? (
+                                  <tr>
+                                    <td colSpan={5} className="sticky left-0 bg-white px-2 sm:px-3 md:px-4 py-4 text-center align-middle text-[var(--portal-text)]">
+                                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-[var(--portal-accent)]" />
+                                    </td>
+                                  </tr>
+                                ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
+                                  <tr>
+                                    <td colSpan={5} className="sticky left-0 bg-white px-2 sm:px-3 md:px-4 py-4 text-center text-muted-foreground align-middle text-[var(--portal-text)]">
+                                      No pro users found
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  filteredUsers
+                                    .filter(user => user.subscription_status === 'pro')
+                                    .sort((a, b) => {
+                                      const dateA = new Date(a.created_at).getTime();
+                                      const dateB = new Date(b.created_at).getTime();
+                                      return dateB - dateA; // Descending order (newest first)
+                                    })
+                                    .map((user) => (
+                                    <tr key={user.id} className="transition-colors hover:bg-gray-50 even:bg-white">
+                                      <td className="sticky left-0 bg-white z-10 px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)] border-r border-gray-200 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                                        <span className="block text-black text-xs sm:text-sm font-medium">{user.first_name} {user.last_name}</span>
+                                      </td>
+                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="text-black text-xs sm:text-sm truncate" title={user.email}>{user.email}</div>
+                                      </td>
+                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                        <Badge 
+                                          variant={user.status === 'active' ? 'outline' : 'secondary'} 
+                                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
                                         >
-                                          Details
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                                          onClick={() => openEditDialog(user)}
-                                        >
-                                          Edit
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                ))
-                            )}
-                            </TableBody>
-                          </Table>
+                                          {user.status}
+                                        </Badge>
+                                      </td>
+                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="whitespace-nowrap text-xs sm:text-sm">{renderLimitBadge(user.listing_limit)}</div>
+                                      </td>
+                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="flex items-center gap-1 sm:gap-2 flex-nowrap">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 h-7 sm:h-8 flex-shrink-0"
+                                            onClick={() => openDetailsDialog(user)}
+                                          >
+                                            Details
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 h-7 sm:h-8 flex-shrink-0"
+                                            onClick={() => openEditDialog(user)}
+                                          >
+                                            Edit
+                                          </Button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))
+                              )}
+                              </tbody>
+                            </table>
                         </div>
                       </div>
                     </CardContent>
@@ -859,86 +855,90 @@ const AdminUsersPage = () => {
 
                   {/* Free Users */}
                   <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-[var(--portal-accent)]" />
-                        <CardTitle className="text-black">Free Users</CardTitle>
+                    <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-4 md:p-6">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <Users className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--portal-accent)]" />
+                        <CardTitle className="text-black text-base sm:text-lg md:text-xl">Free Users</CardTitle>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="rounded-md border overflow-hidden">
-                        <div className="max-h-[600px] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-                          <Table>
-                            <TableHeader className="sticky top-0 bg-white z-10">
-                              <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Listing Limit</TableHead>
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {loading ? (
-                                <TableRow>
-                                  <TableCell colSpan={5} className="text-center py-4">
-                                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-[var(--portal-accent)]" />
-                                  </TableCell>
-                                </TableRow>
-                              ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
-                                <TableRow>
-                                  <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                                    No free users found
-                                  </TableCell>
-                                </TableRow>
-                              ) : (
-                                filteredUsers
-                                  .filter(user => user.subscription_status === 'free')
-                                  .sort((a, b) => {
-                                    const dateA = new Date(a.created_at).getTime();
-                                    const dateB = new Date(b.created_at).getTime();
-                                    return dateB - dateA; // Descending order (newest first)
-                                  })
-                                  .map((user) => (
-                                  <TableRow key={user.id}>
-                                    <TableCell>
-                                      <span className="truncate max-w-[150px] text-black">{user.first_name} {user.last_name}</span>
-                                    </TableCell>
-                                    <TableCell className="truncate max-w-[150px] text-black">{user.email}</TableCell>
-                                    <TableCell>
-                                      <Badge 
-                                        variant={user.status === 'active' ? 'outline' : 'secondary'} 
-                                        className={`px-2 py-1 rounded text-xs ${user.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}
-                                      >
-                                        {user.status}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell>{renderLimitBadge(user.listing_limit)}</TableCell>
-                                    <TableCell>
-                                      <div className="flex items-center gap-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                                          onClick={() => openDetailsDialog(user)}
+                    <CardContent className="p-2 sm:p-3 md:p-4 lg:p-6">
+                      <div className="rounded-md border overflow-hidden w-full">
+                        <div className="table-scroll-container w-full overflow-x-scroll overflow-y-scroll max-h-[300px] sm:max-h-[400px] md:max-h-[500px] lg:max-h-[600px]" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'auto', msOverflowStyle: 'scrollbar' }}>
+                          <table className="divide-y divide-gray-200 border-collapse" style={{ minWidth: '800px' }}>
+                              <thead className="sticky top-0 bg-white z-20 shadow-sm">
+                                <tr>
+                                  <th scope="col" className="sticky left-0 bg-white z-30 h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[100px] sm:min-w-[120px] whitespace-nowrap text-xs sm:text-sm border-r border-gray-200">Name</th>
+                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[150px] sm:min-w-[180px] md:min-w-[200px] whitespace-nowrap text-xs sm:text-sm">Email</th>
+                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[80px] sm:min-w-[100px] whitespace-nowrap text-xs sm:text-sm">Status</th>
+                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[120px] sm:min-w-[140px] whitespace-nowrap text-xs sm:text-sm">Listing Limit</th>
+                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[160px] sm:min-w-[180px] md:min-w-[200px] whitespace-nowrap text-xs sm:text-sm">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {loading ? (
+                                  <tr>
+                                    <td colSpan={5} className="sticky left-0 bg-white px-2 sm:px-3 md:px-4 py-4 text-center align-middle text-[var(--portal-text)]">
+                                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-[var(--portal-accent)]" />
+                                    </td>
+                                  </tr>
+                                ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
+                                  <tr>
+                                    <td colSpan={5} className="sticky left-0 bg-white px-2 sm:px-3 md:px-4 py-4 text-center text-muted-foreground align-middle text-[var(--portal-text)]">
+                                      No free users found
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  filteredUsers
+                                    .filter(user => user.subscription_status === 'free')
+                                    .sort((a, b) => {
+                                      const dateA = new Date(a.created_at).getTime();
+                                      const dateB = new Date(b.created_at).getTime();
+                                      return dateB - dateA; // Descending order (newest first)
+                                    })
+                                    .map((user) => (
+                                    <tr key={user.id} className="transition-colors hover:bg-gray-50 even:bg-white">
+                                      <td className="sticky left-0 bg-white z-10 px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)] border-r border-gray-200 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
+                                        <span className="block text-black text-xs sm:text-sm font-medium">{user.first_name} {user.last_name}</span>
+                                      </td>
+                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="text-black text-xs sm:text-sm truncate" title={user.email}>{user.email}</div>
+                                      </td>
+                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                        <Badge 
+                                          variant={user.status === 'active' ? 'outline' : 'secondary'} 
+                                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
                                         >
-                                          Details
-                                        </Button>
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white"
-                                          onClick={() => openEditDialog(user)}
-                                        >
-                                          Edit
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                ))
-                            )}
-                            </TableBody>
-                          </Table>
+                                          {user.status}
+                                        </Badge>
+                                      </td>
+                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="whitespace-nowrap text-xs sm:text-sm">{renderLimitBadge(user.listing_limit)}</div>
+                                      </td>
+                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="flex items-center gap-1 sm:gap-2 flex-nowrap">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 h-7 sm:h-8 flex-shrink-0"
+                                            onClick={() => openDetailsDialog(user)}
+                                          >
+                                            Details
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 h-7 sm:h-8 flex-shrink-0"
+                                            onClick={() => openEditDialog(user)}
+                                          >
+                                            Edit
+                                          </Button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))
+                              )}
+                              </tbody>
+                            </table>
                         </div>
                       </div>
                     </CardContent>
