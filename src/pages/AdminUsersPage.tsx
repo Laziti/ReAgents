@@ -598,7 +598,7 @@ const AdminUsersPage = () => {
                   <h1 className="ml-0 md:ml-0 text-base sm:text-lg md:text-xl font-semibold text-black truncate">User Management</h1>
                 </div>
               </div>
-              <div className="p-2 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden pb-20 md:pb-6">
+              <div className="p-2 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 flex-1 overflow-y-auto pb-20 md:pb-6">
                 {/* Search and Filter */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
                   <div className="flex-1 min-w-0 w-full sm:w-auto">
@@ -763,23 +763,36 @@ const AdminUsersPage = () => {
                 {/* User Categories */}
                 <div className="grid gap-3 sm:gap-4 md:gap-6">
                   {/* Pro Users */}
-                  <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                  <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)] overflow-hidden">
                     <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-4 md:p-6">
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--portal-accent)]" />
                         <CardTitle className="text-black text-base sm:text-lg md:text-xl">Pro Users</CardTitle>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-2 sm:p-3 md:p-4 lg:p-6">
-                      <div className="overflow-x-scroll w-full border rounded-md" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'auto' }}>
-                        <table className="border-collapse w-full" style={{ minWidth: '1000px' }}>
+                    <CardContent className="p-0">
+                      <div 
+                        className="overflow-x-auto w-full" 
+                        style={{ 
+                          WebkitOverflowScrolling: 'touch',
+                          scrollbarWidth: 'auto',
+                          msOverflowStyle: 'auto'
+                        }}
+                      >
+                        <table 
+                          style={{ 
+                            minWidth: '1000px',
+                            borderCollapse: 'collapse',
+                            width: 'auto'
+                          }}
+                        >
                               <thead>
-                                <tr className="border-b">
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '150px' }}>Name</th>
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '200px' }}>Email</th>
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '100px' }}>Status</th>
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '150px' }}>Listing Limit</th>
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '200px' }}>Actions</th>
+                                <tr className="border-b bg-white">
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '180px' }}>Name</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '220px' }}>Email</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '120px' }}>Status</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '180px' }}>Listing Limit</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '220px' }}>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -823,11 +836,11 @@ const AdminUsersPage = () => {
                                         <div className="whitespace-nowrap text-sm">{renderLimitBadge(user.listing_limit)}</div>
                                       </td>
                                       <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-nowrap">
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90"
+                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90 whitespace-nowrap flex-shrink-0"
                                             onClick={() => openDetailsDialog(user)}
                                           >
                                             Details
@@ -835,7 +848,7 @@ const AdminUsersPage = () => {
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90"
+                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90 whitespace-nowrap flex-shrink-0"
                                             onClick={() => openEditDialog(user)}
                                           >
                                             Edit
@@ -852,23 +865,36 @@ const AdminUsersPage = () => {
                   </Card>
 
                   {/* Free Users */}
-                  <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)]">
+                  <Card className="border-[var(--portal-border)] bg-[var(--portal-card-bg)] overflow-hidden">
                     <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-4 md:p-6">
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <Users className="h-4 w-4 sm:h-5 sm:w-5 text-[var(--portal-accent)]" />
                         <CardTitle className="text-black text-base sm:text-lg md:text-xl">Free Users</CardTitle>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-2 sm:p-3 md:p-4 lg:p-6">
-                      <div className="overflow-x-scroll w-full border rounded-md" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'auto' }}>
-                        <table className="border-collapse w-full" style={{ minWidth: '1000px' }}>
+                    <CardContent className="p-0">
+                      <div 
+                        className="overflow-x-auto w-full" 
+                        style={{ 
+                          WebkitOverflowScrolling: 'touch',
+                          scrollbarWidth: 'auto',
+                          msOverflowStyle: 'auto'
+                        }}
+                      >
+                        <table 
+                          style={{ 
+                            minWidth: '1000px',
+                            borderCollapse: 'collapse',
+                            width: 'auto'
+                          }}
+                        >
                               <thead>
-                                <tr className="border-b">
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '150px' }}>Name</th>
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '200px' }}>Email</th>
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '100px' }}>Status</th>
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '150px' }}>Listing Limit</th>
-                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '200px' }}>Actions</th>
+                                <tr className="border-b bg-white">
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '180px' }}>Name</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '220px' }}>Email</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '120px' }}>Status</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '180px' }}>Listing Limit</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '220px' }}>Actions</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -912,11 +938,11 @@ const AdminUsersPage = () => {
                                         <div className="whitespace-nowrap text-sm">{renderLimitBadge(user.listing_limit)}</div>
                                       </td>
                                       <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-nowrap">
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90"
+                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90 whitespace-nowrap flex-shrink-0"
                                             onClick={() => openDetailsDialog(user)}
                                           >
                                             Details
@@ -924,7 +950,7 @@ const AdminUsersPage = () => {
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90"
+                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90 whitespace-nowrap flex-shrink-0"
                                             onClick={() => openEditDialog(user)}
                                           >
                                             Edit

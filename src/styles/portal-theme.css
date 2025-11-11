@@ -416,6 +416,32 @@ button.submit-button:hover, button.primary-button:hover, button[type="submit"]:h
   box-sizing: border-box;
 }
 
+/* Force horizontal scrolling for user management tables */
+.overflow-x-scroll {
+  overflow-x: scroll !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.overflow-x-scroll::-webkit-scrollbar {
+  height: 12px;
+  display: block;
+}
+
+.overflow-x-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.overflow-x-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 6px;
+  min-height: 20px;
+}
+
+.overflow-x-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
 .table-scroll-container::-webkit-scrollbar {
   width: 12px; /* Make scrollbar more visible */
   height: 12px;
