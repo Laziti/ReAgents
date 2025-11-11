@@ -771,28 +771,27 @@ const AdminUsersPage = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="p-2 sm:p-3 md:p-4 lg:p-6">
-                      <div className="rounded-md border overflow-hidden w-full">
-                        <div className="table-scroll-container w-full overflow-x-scroll overflow-y-scroll max-h-[300px] sm:max-h-[400px] md:max-h-[500px] lg:max-h-[600px]" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'auto', msOverflowStyle: 'scrollbar' }}>
-                          <table className="divide-y divide-gray-200 border-collapse" style={{ minWidth: '800px' }}>
-                              <thead className="sticky top-0 bg-white z-20 shadow-sm">
-                                <tr>
-                                  <th scope="col" className="sticky left-0 bg-white z-30 h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[100px] sm:min-w-[120px] whitespace-nowrap text-xs sm:text-sm border-r border-gray-200">Name</th>
-                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[150px] sm:min-w-[180px] md:min-w-[200px] whitespace-nowrap text-xs sm:text-sm">Email</th>
-                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[80px] sm:min-w-[100px] whitespace-nowrap text-xs sm:text-sm">Status</th>
-                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[120px] sm:min-w-[140px] whitespace-nowrap text-xs sm:text-sm">Listing Limit</th>
-                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[160px] sm:min-w-[180px] md:min-w-[200px] whitespace-nowrap text-xs sm:text-sm">Actions</th>
+                      <div className="overflow-x-scroll w-full border rounded-md" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'auto' }}>
+                        <table className="border-collapse w-full" style={{ minWidth: '1000px' }}>
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '150px' }}>Name</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '200px' }}>Email</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '100px' }}>Status</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '150px' }}>Listing Limit</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '200px' }}>Actions</th>
                                 </tr>
                               </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
+                              <tbody>
                                 {loading ? (
                                   <tr>
-                                    <td colSpan={5} className="sticky left-0 bg-white px-2 sm:px-3 md:px-4 py-4 text-center align-middle text-[var(--portal-text)]">
+                                    <td colSpan={5} className="px-4 py-4 text-center align-middle text-[var(--portal-text)]">
                                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-[var(--portal-accent)]" />
                                     </td>
                                   </tr>
                                 ) : filteredUsers.filter(user => user.subscription_status === 'pro').length === 0 ? (
                                   <tr>
-                                    <td colSpan={5} className="sticky left-0 bg-white px-2 sm:px-3 md:px-4 py-4 text-center text-muted-foreground align-middle text-[var(--portal-text)]">
+                                    <td colSpan={5} className="px-4 py-4 text-center text-muted-foreground align-middle text-[var(--portal-text)]">
                                       No pro users found
                                     </td>
                                   </tr>
@@ -802,33 +801,33 @@ const AdminUsersPage = () => {
                                     .sort((a, b) => {
                                       const dateA = new Date(a.created_at).getTime();
                                       const dateB = new Date(b.created_at).getTime();
-                                      return dateB - dateA; // Descending order (newest first)
+                                      return dateB - dateA;
                                     })
                                     .map((user) => (
-                                    <tr key={user.id} className="transition-colors hover:bg-gray-50 even:bg-white">
-                                      <td className="sticky left-0 bg-white z-10 px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)] border-r border-gray-200 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
-                                        <span className="block text-black text-xs sm:text-sm font-medium">{user.first_name} {user.last_name}</span>
+                                    <tr key={user.id} className="border-b hover:bg-gray-50">
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
+                                        <span className="text-sm font-medium">{user.first_name} {user.last_name}</span>
                                       </td>
-                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
-                                        <div className="text-black text-xs sm:text-sm truncate" title={user.email}>{user.email}</div>
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
+                                        <span className="text-sm">{user.email}</span>
                                       </td>
-                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
                                         <Badge 
                                           variant={user.status === 'active' ? 'outline' : 'secondary'} 
-                                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
+                                          className={user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}
                                         >
                                           {user.status}
                                         </Badge>
                                       </td>
-                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
-                                        <div className="whitespace-nowrap text-xs sm:text-sm">{renderLimitBadge(user.listing_limit)}</div>
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="whitespace-nowrap text-sm">{renderLimitBadge(user.listing_limit)}</div>
                                       </td>
-                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
-                                        <div className="flex items-center gap-1 sm:gap-2 flex-nowrap">
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="flex items-center gap-2">
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 h-7 sm:h-8 flex-shrink-0"
+                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90"
                                             onClick={() => openDetailsDialog(user)}
                                           >
                                             Details
@@ -836,7 +835,7 @@ const AdminUsersPage = () => {
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 h-7 sm:h-8 flex-shrink-0"
+                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90"
                                             onClick={() => openEditDialog(user)}
                                           >
                                             Edit
@@ -848,7 +847,6 @@ const AdminUsersPage = () => {
                               )}
                               </tbody>
                             </table>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -862,28 +860,27 @@ const AdminUsersPage = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="p-2 sm:p-3 md:p-4 lg:p-6">
-                      <div className="rounded-md border overflow-hidden w-full">
-                        <div className="table-scroll-container w-full overflow-x-scroll overflow-y-scroll max-h-[300px] sm:max-h-[400px] md:max-h-[500px] lg:max-h-[600px]" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'auto', msOverflowStyle: 'scrollbar' }}>
-                          <table className="divide-y divide-gray-200 border-collapse" style={{ minWidth: '800px' }}>
-                              <thead className="sticky top-0 bg-white z-20 shadow-sm">
-                                <tr>
-                                  <th scope="col" className="sticky left-0 bg-white z-30 h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[100px] sm:min-w-[120px] whitespace-nowrap text-xs sm:text-sm border-r border-gray-200">Name</th>
-                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[150px] sm:min-w-[180px] md:min-w-[200px] whitespace-nowrap text-xs sm:text-sm">Email</th>
-                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[80px] sm:min-w-[100px] whitespace-nowrap text-xs sm:text-sm">Status</th>
-                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[120px] sm:min-w-[140px] whitespace-nowrap text-xs sm:text-sm">Listing Limit</th>
-                                  <th scope="col" className="h-10 sm:h-12 px-2 sm:px-3 md:px-4 text-left align-middle font-medium text-[var(--portal-label-text)] min-w-[160px] sm:min-w-[180px] md:min-w-[200px] whitespace-nowrap text-xs sm:text-sm">Actions</th>
+                      <div className="overflow-x-scroll w-full border rounded-md" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'auto' }}>
+                        <table className="border-collapse w-full" style={{ minWidth: '1000px' }}>
+                              <thead>
+                                <tr className="border-b">
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '150px' }}>Name</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '200px' }}>Email</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '100px' }}>Status</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '150px' }}>Listing Limit</th>
+                                  <th className="h-12 px-4 text-left align-middle font-medium text-[var(--portal-label-text)] whitespace-nowrap" style={{ minWidth: '200px' }}>Actions</th>
                                 </tr>
                               </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
+                              <tbody>
                                 {loading ? (
                                   <tr>
-                                    <td colSpan={5} className="sticky left-0 bg-white px-2 sm:px-3 md:px-4 py-4 text-center align-middle text-[var(--portal-text)]">
+                                    <td colSpan={5} className="px-4 py-4 text-center align-middle text-[var(--portal-text)]">
                                       <Loader2 className="h-6 w-6 animate-spin mx-auto text-[var(--portal-accent)]" />
                                     </td>
                                   </tr>
                                 ) : filteredUsers.filter(user => user.subscription_status === 'free').length === 0 ? (
                                   <tr>
-                                    <td colSpan={5} className="sticky left-0 bg-white px-2 sm:px-3 md:px-4 py-4 text-center text-muted-foreground align-middle text-[var(--portal-text)]">
+                                    <td colSpan={5} className="px-4 py-4 text-center text-muted-foreground align-middle text-[var(--portal-text)]">
                                       No free users found
                                     </td>
                                   </tr>
@@ -893,33 +890,33 @@ const AdminUsersPage = () => {
                                     .sort((a, b) => {
                                       const dateA = new Date(a.created_at).getTime();
                                       const dateB = new Date(b.created_at).getTime();
-                                      return dateB - dateA; // Descending order (newest first)
+                                      return dateB - dateA;
                                     })
                                     .map((user) => (
-                                    <tr key={user.id} className="transition-colors hover:bg-gray-50 even:bg-white">
-                                      <td className="sticky left-0 bg-white z-10 px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)] border-r border-gray-200 shadow-[2px_0_4px_rgba(0,0,0,0.05)]">
-                                        <span className="block text-black text-xs sm:text-sm font-medium">{user.first_name} {user.last_name}</span>
+                                    <tr key={user.id} className="border-b hover:bg-gray-50">
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
+                                        <span className="text-sm font-medium">{user.first_name} {user.last_name}</span>
                                       </td>
-                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
-                                        <div className="text-black text-xs sm:text-sm truncate" title={user.email}>{user.email}</div>
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
+                                        <span className="text-sm">{user.email}</span>
                                       </td>
-                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
                                         <Badge 
                                           variant={user.status === 'active' ? 'outline' : 'secondary'} 
-                                          className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}
+                                          className={user.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}
                                         >
                                           {user.status}
                                         </Badge>
                                       </td>
-                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
-                                        <div className="whitespace-nowrap text-xs sm:text-sm">{renderLimitBadge(user.listing_limit)}</div>
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="whitespace-nowrap text-sm">{renderLimitBadge(user.listing_limit)}</div>
                                       </td>
-                                      <td className="px-2 sm:px-3 md:px-4 py-2 sm:py-3 align-middle text-[var(--portal-text)]">
-                                        <div className="flex items-center gap-1 sm:gap-2 flex-nowrap">
+                                      <td className="px-4 py-3 align-middle text-[var(--portal-text)]">
+                                        <div className="flex items-center gap-2">
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 h-7 sm:h-8 flex-shrink-0"
+                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90"
                                             onClick={() => openDetailsDialog(user)}
                                           >
                                             Details
@@ -927,7 +924,7 @@ const AdminUsersPage = () => {
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            className="text-white border-[var(--portal-accent)] bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)]/90 focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white text-[10px] sm:text-xs whitespace-nowrap px-2 sm:px-3 h-7 sm:h-8 flex-shrink-0"
+                                            className="bg-[var(--portal-accent)] text-white hover:bg-[var(--portal-accent)]/90"
                                             onClick={() => openEditDialog(user)}
                                           >
                                             Edit
@@ -939,7 +936,6 @@ const AdminUsersPage = () => {
                               )}
                               </tbody>
                             </table>
-                        </div>
                       </div>
                     </CardContent>
                   </Card>
