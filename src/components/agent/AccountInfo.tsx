@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { createSlug } from '@/lib/formatters';
+import { createSlug, formatCareerLabel } from '@/lib/formatters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -488,7 +488,7 @@ const AccountInfo = ({ listings = [], profile: initialProfile, onRefresh }: Acco
                   </div>
                   {profile.career && (
                     <p className="text-[var(--portal-text-secondary)] mb-2">
-                      {profile.career}
+                      {formatCareerLabel(profile.career) || 'Agent'}
                     </p>
                   )}
                   {profile.phone_number && (

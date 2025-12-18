@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Helmet } from 'react-helmet-async';
-import { createSlug, formatCurrency, formatDate } from '@/lib/formatters';
+import { createSlug, formatCurrency, formatDate, formatCareerLabel } from '@/lib/formatters';
 import { Loader2, ArrowLeft, MapPin, Banknote, Calendar, ExternalLink, Phone, MessageCircle, Send, Share2, Copy, Check, FileText, Home, DollarSign, Facebook, Twitter, Linkedin, ThumbsUp, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -406,7 +406,7 @@ const ListingDetail = () => {
                   <div>
                     <h3 className="font-semibold text-lg text-black">{agent.first_name} {agent.last_name}</h3>
                     {agent.career && (
-                      <p className="text-sm text-black">{agent.career}</p>
+                      <p className="text-sm text-black">{formatCareerLabel(agent.career)}</p>
                     )}
                   </div>
                 </div>

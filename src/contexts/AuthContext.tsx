@@ -209,7 +209,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Sign out
   const signOut = async () => {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1c18bccf-ed41-47c5-9276-d3dce12ba107', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'logout-debug',
+          hypothesisId: 'L1',
+          location: 'src/contexts/AuthContext.tsx:210',
+          message: 'signOut called',
+          data: { hasSession: !!session, userId: user?.id },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
       await supabase.auth.signOut();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/1c18bccf-ed41-47c5-9276-d3dce12ba107', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'debug-session',
+          runId: 'logout-debug',
+          hypothesisId: 'L2',
+          location: 'src/contexts/AuthContext.tsx:212',
+          message: 'supabase.auth.signOut resolved',
+          data: {},
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
       navigate('/auth');
     } catch (error) {
       logger.error('Error in signOut:', error);

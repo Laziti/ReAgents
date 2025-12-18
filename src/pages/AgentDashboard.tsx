@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import AgentSidebar from '@/components/agent/AgentSidebar';
+import AgentMobileHeader from '@/components/agent/AgentMobileHeader';
 import ListingTable from '@/components/agent/ListingTable';
 import CreateListingForm from '@/components/agent/CreateListingForm';
 import EditListingForm from '@/components/agent/EditListingForm';
@@ -12,7 +13,7 @@ import DashboardContent from '@/components/agent/DashboardContent';
 import { Loader2, Plus, X, Building, Copy, Share2, Check, Rocket, Globe, Facebook, Twitter, Linkedin, MessageCircle, Send, Eye, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import '@/styles/portal-theme.css';
-import { createSlug } from '@/lib/formatters';
+import { createSlug, formatCareerLabel } from '@/lib/formatters';
 import UpgradeSidebar from '@/components/agent/UpgradeSidebar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { logger } from '@/lib/logger';
@@ -394,119 +395,7 @@ const AgentDashboard = () => {
           </div>
 
           {/* Mobile Header - Professional Design */}
-          <div className="md:hidden">
-            {/* Top Bar with User Info and Icons */}
-            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-red-50 to-white border-b border-gray-100">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                {/* Avatar */}
-                <div className="h-10 w-10 rounded-full overflow-hidden bg-red-100 flex items-center justify-center flex-shrink-0 border-2 border-white shadow-sm">
-                  {profileData?.avatar_url ? (
-                    <img 
-                      src={profileData.avatar_url} 
-                      alt={profileData.first_name || 'Profile'} 
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-red-600 font-semibold text-sm">
-                      {profileData?.first_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || 'A'}
-                    </span>
-                  )}
-                </div>
-                
-                {/* User Name and Title */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-semibold text-gray-900 truncate">
-                      {profileData?.first_name && profileData?.last_name
-                        ? `${profileData.first_name} ${profileData.last_name}`
-                        : user?.email?.split('@')[0] || 'Agent'}
-                    </h2>
-                    {/* PRO Badge if applicable */}
-                    {profileData?.subscription_status === 'pro' && (
-                      <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm flex-shrink-0">
-                        PRO
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500 truncate">
-                    {profileData?.career || 'Real Estate Agent'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Icons - In one row */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <Popover open={isMobileSharePopoverOpen} onOpenChange={setIsMobileSharePopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="h-9 w-9 rounded-md flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
-                    >
-                      <Share2 className="h-5 w-5" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent 
-                    className="w-56 p-2 bg-white border-gray-200 shadow-lg rounded-lg z-[100]"
-                    side="bottom"
-                    align="end"
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                  >
-                    <div className="grid gap-2">
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-gray-700 hover:bg-gray-50 w-full"
-                        onClick={() => {
-                          copyProfileLinkFromHeader();
-                          setIsMobileSharePopoverOpen(false);
-                        }}
-                      >
-                        {copied ? <Check className="h-4 w-4 mr-2 text-green-500" /> : <Copy className="h-4 w-4 mr-2" />}
-                        {copied ? 'Link Copied!' : 'Copy Link'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-gray-700 hover:bg-gray-50 w-full"
-                        onClick={() => {
-                          handleShareToSocial('whatsapp');
-                          setIsMobileSharePopoverOpen(false);
-                        }}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-2 text-green-500" /> WhatsApp
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="justify-start text-gray-700 hover:bg-gray-50 w-full"
-                        onClick={() => {
-                          handleShareToSocial('telegram');
-                          setIsMobileSharePopoverOpen(false);
-                        }}
-                      >
-                        <Send className="h-4 w-4 mr-2 text-blue-500" /> Telegram
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-gray-600 hover:bg-gray-100"
-                  onClick={() => window.open(`/agent/${profileData?.slug || ''}`, '_blank')}
-                >
-                  <Eye className="h-5 w-5" />
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-gray-600 hover:bg-gray-100"
-                  onClick={() => setActiveTab('account')}
-                >
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          </div>
+          <AgentMobileHeader profile={profileData} />
         </header>
         
         {/* Main Content Area */}

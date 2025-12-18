@@ -31,6 +31,22 @@ export const createSlug = (text: string): string => {
 };
 
 /**
+ * Format career/profession labels for display
+ */
+export const formatCareerLabel = (career?: string | null): string | null => {
+  if (!career) return null;
+
+  const normalized = career.toLowerCase().trim();
+
+  if (normalized === 'real_estate_agent' || normalized === 'real estate agent') {
+    return 'Agent';
+  }
+
+  // Replace underscores with spaces for nicer display
+  return career.replace(/_/g, ' ');
+};
+
+/**
  * Format a date string
  */
 export const formatDate = (dateString: string): string => {

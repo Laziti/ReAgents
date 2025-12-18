@@ -1,0 +1,3 @@
+[functions.reset-admin]
+verify_jwt = false
+

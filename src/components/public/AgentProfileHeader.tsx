@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin, Briefcase, Award, Calendar, Building2, BadgeCheck, Share2, MessageCircle, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { formatCareerLabel } from '@/lib/formatters';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -205,7 +206,7 @@ const AgentProfileHeader = ({
                     <div className="flex items-center justify-center lg:justify-start gap-2.5">
                       <Briefcase className="h-5 w-5 text-blue-600 flex-shrink-0" />
                       <p className="text-base sm:text-lg lg:text-xl text-slate-700 font-semibold">
-                    {career}
+                    {formatCareerLabel(career) || 'Agent'}
                   </p>
                       </div>
                     )}

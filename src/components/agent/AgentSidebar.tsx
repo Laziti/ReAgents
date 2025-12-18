@@ -304,7 +304,25 @@ const AgentSidebar = ({ activeTab, setActiveTab }: AgentSidebarProps) => {
         <Button
           variant="outline"
           className="w-full justify-start text-left border-[var(--portal-accent)] text-white bg-[var(--portal-accent)] hover:bg-[var(--portal-accent)] focus:bg-[var(--portal-accent)] focus:text-white active:bg-[var(--portal-accent)] active:text-white mb-4"
-          onClick={signOut}
+          onClick={() => {
+            // #region agent log
+            fetch('http://127.0.0.1:7243/ingest/1c18bccf-ed41-47c5-9276-d3dce12ba107', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId: 'debug-session',
+                runId: 'logout-debug',
+                hypothesisId: 'L0',
+                location: 'src/components/agent/AgentSidebar.tsx:304',
+                message: 'Logout button clicked',
+                data: { currentPath: location.pathname },
+                timestamp: Date.now(),
+              }),
+            }).catch(() => {});
+            // #endregion
+
+            signOut();
+          }}
         >
           <LogOut className="h-4 w-4 mr-3" />
           Sign Out

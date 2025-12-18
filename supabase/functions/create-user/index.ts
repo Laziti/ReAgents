@@ -98,7 +98,7 @@ serve(async (req) => {
       last_name: payload.user_metadata.last_name,
       phone_number: payload.user_metadata.phone_number || null,
       company: payload.user_metadata.company || null,
-      career: payload.user_metadata.career || 'real_estate_agent',
+      career: payload.user_metadata.career || 'Agent',
       created_by_admin: true, // Prevent trigger from creating profile
     };
 
@@ -174,7 +174,7 @@ serve(async (req) => {
       slug: finalSlug,
       phone_number: payload.user_metadata.phone_number || null,
       company: payload.user_metadata.company || null,
-      career: payload.user_metadata.career || 'real_estate_agent',
+      career: payload.user_metadata.career || 'Agent',
       social_links: {},
     };
 

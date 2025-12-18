@@ -207,7 +207,7 @@ const AuthHero: React.FC = () => {
             last_name: sanitizeInput(signUpLastName),
             phone_number: sanitizePhoneNumber(signUpPhoneNumber),
             company: companyToSubmit ? sanitizeInput(companyToSubmit) : null,
-            career: 'real_estate_agent', // Default career for all signups
+            career: 'Agent', // Default career for all signups
           }
         })
       });
